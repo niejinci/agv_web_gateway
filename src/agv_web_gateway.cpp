@@ -67,38 +67,50 @@ void AgvWebGateway::on_message(websocketpp::connection_hdl hdl, server::message_
         m_client->get_point_cloud([this, hdl](const std::string& json_resp) {
             send_to_frontend(hdl, "point_cloud", json_resp);
         });
+    } else if (cmd == "stop_point_cloud") {
+        m_client->cancel_get_point_cloud();
     }
     // 获取小车位置
     else if (cmd == "start_agv_position") {
         m_client->get_agv_position([this, hdl](const std::string& json_resp) {
             send_to_frontend(hdl, "agv_position", json_resp);
         });
+    } else if (cmd == "stop_agv_position") {
+        m_client->cancel_get_agv_position();
     }
     // 获取小车避障轮廓
     else if (cmd == "start_obst_polygon") {
         m_client->get_obst_polygon([this, hdl](const std::string& json_resp) {
             send_to_frontend(hdl, "obst_polygon", json_resp);
         });
+    } else if (cmd == "stop_obst_polygon") {
+        m_client->cancel_get_obst_polygon();
     }
     // 获取小车避障点云(避障用)
     else if (cmd == "start_scan2pointcloud") {
         m_client->get_scan2pointcloud([this, hdl](const std::string& json_resp) {
             send_to_frontend(hdl, "scan2pointcloud", json_resp);
         });
+    } else if (cmd == "stop_scan2pointcloud") {
+        m_client->cancel_get_scan2pointcloud();
     }
     // 获取小车模型轮廓
     else if (cmd == "start_model_polygon") {
         m_client->get_model_polygon([this, hdl](const std::string& json_resp) {
             send_to_frontend(hdl, "model_polygon", json_resp);
         });
+    } else if (cmd == "stop_model_polygon") {
+        m_client->cancel_get_model_polygon();
     }
     // 获取小车障碍物点云
     else if (cmd == "start_obst_pcl") {
         m_client->get_obst_pcl([this, hdl](const std::string& json_resp) {
             send_to_frontend(hdl, "obst_pcl", json_resp);
         });
+    } else if (cmd == "stop_obst_pcl") {
+        m_client->cancel_get_obst_pcl();
     }
-    // 获取日志文件列表，用于开发测试 websocket 接口，正式发布时可以删除
+    // 获取日志文件列表，作为一个非持续数据流的测试接口
     else if (cmd == "get_log_list") {
         m_client->get_log_list([this, hdl](const std::string& json_resp) {
             send_to_frontend(hdl, "log_list", json_resp);
