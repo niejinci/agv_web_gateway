@@ -1,0 +1,66 @@
+body {
+    margin: 0;
+    overflow: hidden;
+    background-color: #1e1e1e;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+/* 左侧控制面板悬浮层 */
+#control-panel {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    width: 300px;
+    background: rgba(30, 30, 30, 0.85);
+    color: white;
+    padding: 15px;
+    border-radius: 8px;
+    border: 1px solid #444;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+    pointer-events: auto; /* 允许点击 */
+    z-index: 100;
+}
+
+h3 { margin-top: 0; font-size: 16px; border-bottom: 1px solid #555; padding-bottom: 5px; }
+
+/* 状态指示 */
+#status { margin-bottom: 15px; font-weight: bold; color: #ff4444; }
+.connected { color: #00ff00 !important; }
+
+/* 开关控制行 */
+.control-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+    font-size: 14px;
+}
+
+/* 按钮样式 */
+button {
+    background-color: #007acc;
+    color: white;
+    border: none;
+    padding: 5px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+}
+button:hover { background-color: #0098ff; }
+button.stop-btn { background-color: #cc4400; }
+button.stop-btn:hover { background-color: #ff5500; }
+
+/* 日志输出区域 */
+#log-output {
+    margin-top: 10px;
+    width: 100%;
+    height: 150px;
+    background: #000;
+    color: #0f0;
+    border: 1px solid #333;
+    padding: 5px;
+    font-size: 12px;
+    overflow-y: auto;
+    box-sizing: border-box;
+    white-space: pre-wrap;
+}

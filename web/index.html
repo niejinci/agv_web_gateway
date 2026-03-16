@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>AGV Web 3D Viz</title>
+    <link rel="stylesheet" href="style.css">
+    <!-- 引入 Three.js 及鼠标控制插件 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+</head>
+<body>
+    <!-- 左侧控制面板 -->
+    <div id="control-panel">
+        <h3>网关状态</h3>
+        <div id="status">未连接</div>
+
+        <h3>数据流控制</h3>
+        <div class="control-row">点云 (Point Cloud) <button id="btn-point_cloud">Stop</button></div>
+        <div class="control-row">位置 (AGV Position) <button id="btn-agv_position">Stop</button></div>
+        <div class="control-row">避障轮廓 (Obst Polygon) <button id="btn-obst_polygon">Stop</button></div>
+        <div class="control-row">模型轮廓 (Model Polygon) <button id="btn-model_polygon">Stop</button></div>
+        <div class="control-row">避障点云 (Scan2Pcl) <button id="btn-scan2pointcloud">Stop</button></div>
+        <div class="control-row">障碍物点云 (Obst Pcl) <button id="btn-obst_pcl">Stop</button></div>
+
+        <h3>测试接口</h3>
+        <button id="btn-get_log">获取日志列表 (get_log_list)</button>
+        <textarea id="log-output" readonly placeholder="日志列表将显示在这里..."></textarea>
+    </div>
+
+    <!-- 核心逻辑 -->
+    <script src="app.js"></script>
+</body>
+</html>
