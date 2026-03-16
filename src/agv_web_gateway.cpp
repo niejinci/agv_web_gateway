@@ -10,7 +10,10 @@ AgvWebGateway::AgvWebGateway() {
     m_server.set_access_channels(websocketpp::log::alevel::app);
 
     // 2. 初始化 ASIO
-    m_server.init_asio();
+    // 【核心魔法】把我们自己的 io_context 传给 websocketpp！
+    // 这样 websocketpp 就不会自己创建了，而是和我们的 client 用同一个。
+    m_server.init_asio(&m_io_context);
+    // m_server.init_asio(); // 这是默认行为，会自己创建一个 io_context，我们就无法在外部访问了
 
     // 3. 注册 WebSocket 回调
     m_server.set_open_handler(std::bind(&AgvWebGateway::on_open, this, std::placeholders::_1));
@@ -19,13 +22,6 @@ AgvWebGateway::AgvWebGateway() {
 
     // 4. 实例化你的通信库
     m_client = qclcpp::Client::create(m_io_context, "../config/requestname2cmd.ini");
-
-    std::thread t([this]() {
-        // 创建一个 work 对象，用于保持 io_context 运行
-        asio::io_context::work work(this->m_io_context);
-        this->m_io_context.run();
-        });
-    t.detach();
 }
 
 AgvWebGateway::~AgvWebGateway() {
@@ -35,17 +31,19 @@ AgvWebGateway::~AgvWebGateway() {
 void AgvWebGateway::run(const std::string& agv_ip, uint16_t agv_port, uint16_t ws_port) {
     std::cout << "[Gateway] 连接 AGV 服务端 " << agv_ip << ":" << agv_port << " ..." << std::endl;
     // 假设你的 client 有类似 connect 的方法，如果没有请根据实际修改
-    m_client->connect(agv_ip, std::to_string(agv_port), [](bool success) {
+    m_client->connect(agv_ip, std::to_string(agv_port), [agv_port](bool success) {
         if (success) {
-            std::cout << "[Gateway] 成功连接到 AGV 服务端!" << std::endl;
+            std::cout << "[Gateway] 成功连接到 AGV 服务端! port=" << agv_port << std::endl;
         } else {
-            std::cerr << "[Gateway] 连接 AGV 服务端失败!" << std::endl;
+            std::cerr << "[Gateway] 连接 AGV 服务端失败! port=" << agv_port << std::endl;
         }
     });
 
     std::cout << "[Gateway] WebSocket 服务已启动，监听端口: " << ws_port << std::endl;
     m_server.listen(ws_port);
     m_server.start_accept();
+    // websocketpp 的 run() 内部源码其实就是： m_io_context->run();
+    // 这一句跑起来，WebSocket 的网络事件和 Client 的网络事件就都在这个主线程里被分发处理了！
     m_server.run(); // 阻塞运行，基于 asio 的事件循环
 }
 
@@ -63,20 +61,50 @@ void AgvWebGateway::on_message(websocketpp::connection_hdl hdl, server::message_
     std::string cmd = msg->get_payload();
     std::cout << "[Gateway] 收到前端指令: " << cmd << std::endl;
 
+    // 以下点云，服务端支持的最高请求频率 5hz。
+    // 小车点云(稀疏，显示用)
     if (cmd == "start_point_cloud") {
         m_client->get_point_cloud([this, hdl](const std::string& json_resp) {
             send_to_frontend(hdl, "point_cloud", json_resp);
         });
     }
+    // 获取小车位置
     else if (cmd == "start_agv_position") {
         m_client->get_agv_position([this, hdl](const std::string& json_resp) {
             send_to_frontend(hdl, "agv_position", json_resp);
         });
     }
+    // 获取小车避障轮廓
     else if (cmd == "start_obst_polygon") {
         m_client->get_obst_polygon([this, hdl](const std::string& json_resp) {
             send_to_frontend(hdl, "obst_polygon", json_resp);
         });
+    }
+    // 获取小车避障点云(避障用)
+    else if (cmd == "start_scan2pointcloud") {
+        m_client->get_scan2pointcloud([this, hdl](const std::string& json_resp) {
+            send_to_frontend(hdl, "scan2pointcloud", json_resp);
+        });
+    }
+    // 获取小车模型轮廓
+    else if (cmd == "start_model_polygon") {
+        m_client->get_model_polygon([this, hdl](const std::string& json_resp) {
+            send_to_frontend(hdl, "model_polygon", json_resp);
+        });
+    }
+    // 获取小车障碍物点云
+    else if (cmd == "start_obst_pcl") {
+        m_client->get_obst_pcl([this, hdl](const std::string& json_resp) {
+            send_to_frontend(hdl, "obst_pcl", json_resp);
+        });
+    }
+    // 获取日志文件列表，用于开发测试 websocket 接口，正式发布时可以删除
+    else if (cmd == "get_log_list") {
+        m_client->get_log_list([this, hdl](const std::string& json_resp) {
+            send_to_frontend(hdl, "log_list", json_resp);
+        });
+    }  else {
+        std::cout << "[Gateway] 未知指令: " << cmd << std::endl;
     }
     // TODO: 其他接口...
 }

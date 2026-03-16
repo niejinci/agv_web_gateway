@@ -1222,4 +1222,15 @@ bool Client::get_model_polygon_once(ResponseHandler handler) {
     });
 }
 
+// 获取日志文件列表 api
+bool Client::get_log_list(ResponseHandler handler)
+{
+    return process_request("GET_LOG_LIST", handler, [this]() {return get_log_list();});
+}
+
+bool Client::get_log_list()
+{
+    return send_request("GET_LOG_LIST", "");
+}
+
 }//end of namespace

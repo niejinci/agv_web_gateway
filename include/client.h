@@ -102,6 +102,8 @@ public:
     bool get_model_polygon(ResponseHandler handler);
     void cancel_get_model_polygon();
 
+    bool get_log_list(ResponseHandler handler);
+
 public:
     // 单次调用接口
     bool get_scan2pointcloud_once(ResponseHandler handler);
@@ -274,6 +276,8 @@ private:
     bool get_qr_camera_data();
     bool get_point_cloud();
     bool get_agv_position();
+
+    bool get_log_list();
 
     // 辅助函数
     bool is_valid_port(const std::string& portStr);
