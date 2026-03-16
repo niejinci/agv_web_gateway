@@ -29,6 +29,7 @@ private:
     void on_open(websocketpp::connection_hdl hdl);
     void on_close(websocketpp::connection_hdl hdl);
     void on_message(websocketpp::connection_hdl hdl, server::message_ptr msg);
+    void on_http(websocketpp::connection_hdl hdl);
 
     // 辅助发包函数，用于把原始 json 包装上类型后发给前端
     void send_to_frontend(websocketpp::connection_hdl hdl, const std::string& type, const std::string& raw_json);

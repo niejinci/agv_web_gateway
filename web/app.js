@@ -55,7 +55,9 @@ rosRoot.add(meshObstPoly);
 // ==========================================
 // 2. WebSocket 与 UI 控制逻辑
 // ==========================================
-const ws = new WebSocket('ws://127.0.0.1:8080');
+// 写死连接本机的 8080
+// const ws = new WebSocket('ws://127.0.0.1:8080');
+const ws = new WebSocket(`ws://${window.location.host}`);
 const statusDiv = document.getElementById('status');
 const logOutput = document.getElementById('log-output');
 
@@ -211,3 +213,21 @@ window.addEventListener('resize', () => {
     camera.updateProjectionMatrix();
     renderer.setSize(window.innerWidth, window.innerHeight);
 });
+
+// ==========================================
+// 5. 面板折叠逻辑
+// ==========================================
+const btnToggle = document.getElementById('btn-toggle-panel');
+const panelContent = document.getElementById('panel-content');
+let isPanelOpen = true;
+
+btnToggle.onclick = () => {
+    isPanelOpen = !isPanelOpen;
+    if (isPanelOpen) {
+        panelContent.style.display = 'block';
+        btnToggle.textContent = '折叠 -';
+    } else {
+        panelContent.style.display = 'none';
+        btnToggle.textContent = '展开 +';
+    }
+};

@@ -22,6 +22,9 @@ AgvWebGateway::AgvWebGateway() {
 
     // 4. 实例化你的通信库
     m_client = qclcpp::Client::create(m_io_context, "../config/requestname2cmd.ini");
+
+    // 5. 注册 HTTP 请求处理器
+    m_server.set_http_handler(std::bind(&AgvWebGateway::on_http, this, std::placeholders::_1));
 }
 
 AgvWebGateway::~AgvWebGateway() {
@@ -40,7 +43,7 @@ void AgvWebGateway::run(const std::string& agv_ip, uint16_t agv_port, uint16_t w
     });
 
     std::cout << "[Gateway] WebSocket 服务已启动，监听端口: " << ws_port << std::endl;
-    m_server.listen(ws_port);
+    m_server.listen(asio::ip::tcp::v4(), ws_port);
     m_server.start_accept();
     // websocketpp 的 run() 内部源码其实就是： m_io_context->run();
     // 这一句跑起来，WebSocket 的网络事件和 Client 的网络事件就都在这个主线程里被分发处理了！
@@ -131,5 +134,44 @@ void AgvWebGateway::send_to_frontend(websocketpp::connection_hdl hdl, const std:
     m_server.send(hdl, ws_msg, websocketpp::frame::opcode::text, ec);
     if (ec) {
         // 前端可能断开了，忽略或记录日志
+    }
+}
+
+// 实现 on_http 函数
+void AgvWebGateway::on_http(websocketpp::connection_hdl hdl) {
+    server::connection_ptr con = m_server.get_con_from_hdl(hdl);
+
+    // 获取前端请求的路径 (例如 "/", "/style.css", "/app.js")
+    std::string uri = con->get_resource();
+
+    // 默认映射到 index.html
+    std::string filename = "../web/index.html";
+    std::string content_type = "text/html; charset=utf-8";
+
+    if (uri == "/style.css") {
+        filename = "../web/style.css";
+        content_type = "text/css; charset=utf-8";
+    } else if (uri == "/app.js") {
+        filename = "../web/app.js";
+        content_type = "application/javascript; charset=utf-8";
+    } else if (uri != "/") {
+        // 请求了不存在的文件
+        con->set_status(websocketpp::http::status_code::not_found);
+        con->set_body("404 Not Found");
+        return;
+    }
+
+    // 读取文件内容并发给浏览器
+    std::ifstream file(filename, std::ios::in | std::ios::binary);
+    if (file) {
+        std::stringstream buffer;
+        buffer << file.rdbuf();
+        con->set_body(buffer.str());
+        con->set_status(websocketpp::http::status_code::ok);
+        con->append_header("Content-Type", content_type);
+    } else {
+        // 文件找不到时的报错
+        con->set_status(websocketpp::http::status_code::internal_server_error);
+        con->set_body("Error: Cannot find web files. Make sure the 'web' folder is in the correct path.");
     }
 }
