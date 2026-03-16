@@ -59,58 +59,17 @@ public:
 
     static std::shared_ptr<Client> create(asio::io_context& io_context, const std::string& requestname2cmd_file="");
     void connect(const std::string& host, const std::string& port, std::function<void(bool)> callback);
-    bool upload_file(const std::string& args, ResponseHandler handler);
 
     void disconnect(std::function<void(const std::string& error)> callback = default_disconnect_callback);
-    void switch_server(const std::string& new_host, const std::string& new_port, SwitchServerCallback callback = default_switch_callback);
-    bool pull_map(const std::string& map_name, ResponseHandler handler);
-    bool push_map(const std::string& file_path, ResponseHandler handler);
     bool get_agv_position(ResponseHandler handler);
     void set_agv_position_interval(int interval_ms);
-    bool set_operating_mode(int mode, ResponseHandler handler);
-    bool get_operating_mode(ResponseHandler handler);
     bool get_point_cloud(ResponseHandler handler);
-    bool get_map_list(ResponseHandler handler);
-    bool get_camera_video_list(ResponseHandler handler);
-
-    bool get_log_list(ResponseHandler handler);
-    bool get_log_file(const std::string& file_name, ResponseHandler handler);
-    bool reboot_or_poweroff(const std::string& command, ResponseHandler handler);
-    bool set_datetime(const std::string& datetime, ResponseHandler handler);
-    bool get_datetime(ResponseHandler handler);
-
-    bool terminal_command(const std::string& args, ResponseHandler handler);
-    bool build_map(ResponseHandler handler);
-    bool ota_upgrade(const std::string& args, ResponseHandler handler);
     bool get_localization_quality(ResponseHandler handler);
-    bool get_velocity(ResponseHandler handler);
     bool get_mcu2pc(ResponseHandler handler);
-    bool get_run_task(ResponseHandler handler);
-    bool pause_task(ResponseHandler handler);
-    bool resume_task(ResponseHandler handler);
-    bool cancel_task(const std::string& args, ResponseHandler handler);
-    bool start_task(const std::string& args, ResponseHandler handler);
-    bool rotation(const std::string& args, ResponseHandler handler);
-    bool translation(const std::string& args, ResponseHandler handler);
-    bool relocation(const std::string& args, ResponseHandler handler);
-    bool lifting(const std::string& args, ResponseHandler handler);
-    bool remote_control(const std::string& args, ResponseHandler handler);
-    bool set_log_level(const std::string& args, ResponseHandler handler);
-    bool get_clients(ResponseHandler handler);
-    bool emergency_stop(const std::string& args, ResponseHandler handler);
     bool get_sysinfo(ResponseHandler handler);
     void cancel_get_sysinfo();
     // 定时获取小车系统信息
-    bool get_sysinfo_periodic(ResponseHandler handler);
-    bool pallet_rotation(const std::string& args, ResponseHandler handler);
-    bool get_model_file(const std::string& file_name, ResponseHandler handler);
-    bool stop_charging(ResponseHandler handler);
-    bool set_do(const std::string& args, ResponseHandler handler);
-    bool set_di(const std::string& args, ResponseHandler handler);
     bool clear_errors(ResponseHandler handler);
-
-    // 检测ip列表的连接性
-    void check_connectivity(const std::vector<std::string>& ip_list, ResponseHandler handler);
 
     // 本地操作，无需命令字段
     void cancel_get_agv_position();
@@ -126,14 +85,7 @@ public:
     bool get_3dcamera_pointcloud(ResponseHandler handler);
     void cancel_get_3dcamera_pointcloud();
     bool get_errors(ResponseHandler handler);
-    bool get_processes_info(const std::string& args, ResponseHandler handler);
-    bool check_fd_keep_alive(const std::string& fd, ResponseHandler handler);
 
-    bool get_plc_digital_io(const std::string& args, ResponseHandler handler);
-    bool get_wifi_list(ResponseHandler handler);
-    bool set_wifi_config(const std::string& args, ResponseHandler handler);
-    bool get_network_interface(ResponseHandler handler);
-    bool get_execution_queue(ResponseHandler handler);
     bool get_qr_camera_data(ResponseHandler handler);
     void cancel_get_qr_camera_data();
 
@@ -150,38 +102,6 @@ public:
     bool get_model_polygon(ResponseHandler handler);
     void cancel_get_model_polygon();
 
-    bool get_chassis_info(ResponseHandler handler);
-
-    // 新增：双臂机器人控制 API
-    bool enable_robot(const std::string& args, ResponseHandler handler);
-    bool set_coordinate_system(const std::string& args, ResponseHandler handler);
-    bool set_tool(const std::string& args, ResponseHandler handler);
-    bool jog_single_axis(const std::string& args, ResponseHandler handler);
-    bool one_click_homing(const std::string& args, ResponseHandler handler);
-    bool get_teachin_file_list(ResponseHandler handler);
-    bool get_teachin_file(const std::string& file_name, ResponseHandler handler);
-    bool push_teachin_points(const std::string& points, ResponseHandler handler);
-    bool get_teachin_points(const std::string& file_name, ResponseHandler handler);
-    bool delete_teachin_files(const std::string& filenames, ResponseHandler handler);
-
-    bool get_robot_state(ResponseHandler handler);
-    void cancel_get_robot_state();
-
-    bool get_broker_connection(ResponseHandler handler);
-    bool set_rcs_online(const std::string& args, ResponseHandler handler);
-    bool soft_reset(ResponseHandler handler);
-    bool get_rack_number(ResponseHandler handler);
-    bool check_showmap_update_status(const std::string& args, ResponseHandler handler);
-    bool start_mapping(ResponseHandler handler);
-    bool save_location_map(const std::string& args, ResponseHandler handler);
-    bool end_mapping(ResponseHandler handler);
-    bool get_wares(ResponseHandler handler);
-    bool delete_ware(const std::string& args, ResponseHandler handler);
-    bool modify_ware(const std::string& args, ResponseHandler handler);
-    bool add_ware(const std::string& args, ResponseHandler handler);
-
-    bool upload_map_data(const std::string& file_path, ResponseHandler handler);
-    bool download_map_data(const std::string& map_name, ResponseHandler handler);
 public:
     // 单次调用接口
     bool get_scan2pointcloud_once(ResponseHandler handler);
@@ -197,7 +117,6 @@ private:
     void pointcloud_uuid_to_handler_(const std::string& uuid, ResponseHandler handler);
     std::string create_packet(const std::string& request_name, const std::string& uuid, const std::string& msg);
     void start_next_write();
-    void do_write_chunk();
     void close_socket(std::function<void(const std::string& error)> callback = default_disconnect_callback);
     void clear_write_status();
     void reconnect_pointcloud_after_delay();
@@ -234,11 +153,8 @@ private:
     int file_size_;
     int chunk_number_;
     std::string file_path_;
-    void start_upload_file(const asio::error_code& ec);
-    std::string get_filename_from_path(const std::string& filepath);
     std::shared_ptr<asio::steady_timer> upload_file_timer_;
     bool upload_file_failed_ = false;
-    void clear_upload_file_status();
 
     static const uint16_t sync_field_ = 0x4E66;
     // 添加专用于点云数据的连接
@@ -276,8 +192,6 @@ private:
     std::string push_file_uuid_;
     std::ifstream ifile_stream_;
     ResponseHandler push_file_finish_handler_;
-    void push_file_callback(const std::string& reply);
-    void clear_push_file_status();
 
     // 拉取地图
     std::mutex get_file_mutex_;
@@ -286,10 +200,6 @@ private:
     std::ofstream ofile_stream_;
     ResponseHandler get_file_finish_handler_;
     std::string output_file_name_;
-    std::string tmp_suffix_;
-    void get_file_callback(const std::string& reply);
-    void clear_get_file_status();
-    bool create_directory(const std::string& file_name, std::string& dir_path, FILE_TYPE file_type=MAP_FILE);
 
     // ota 升级
     std::shared_ptr<asio::steady_timer> ota_upgrade_timer_;
@@ -311,29 +221,8 @@ private:
     std::function<void(const std::string&, const std::string&)> connect_lambda;
     bool heart_beat_running_ = false;
 
-    // 带超时的连接
-    void connect_with_timeout(const std::string& ip,
-        std::shared_ptr<asio::ip::tcp::socket> socket,
-        std::shared_ptr<asio::steady_timer> timer,
-        std::shared_ptr<std::vector<std::pair<std::string, bool>>> results,
-        std::shared_ptr<std::atomic<int>> remaining, ResponseHandler handler);
-
-    // 根据类型获取文件
-    bool get_file_by_type(const std::string& map_name, ResponseHandler handler, FILE_TYPE type);
-    OperationReult is_ready_to_get_file(const std::string& file_name, ResponseHandler handler, FILE_TYPE type=MAP_FILE);
-    std::string get_file_request_name_;
-
-    bool get_run_task();
     bool get_mcu2pc();
-    bool get_velocity();
     bool get_localization_quality();
-    bool build_map();
-    bool get_datetime();
-    bool get_log_list();
-    bool get_map_list();
-    bool get_camera_video_list();
-    bool get_operating_mode();
-    bool set_operating_mode(int mode);
     bool get_3dcamera_pointcloud();
     bool pause_task();
     bool resume_task();
@@ -351,7 +240,6 @@ private:
     bool get_sysinfo();
     std::shared_ptr<asio::steady_timer> get_sysinfo_timer_;
     bool get_sysinfo_running_ = false;
-    void get_sysinfo_periodic(const asio::error_code& ec);
 
     bool get_camera_point_cloud();
     bool get_errors();
@@ -359,30 +247,6 @@ private:
     bool set_do(const std::string& args);
     bool set_di(const std::string& args);
     bool clear_errors();
-    bool get_chassis_info();
-    bool get_broker_connection();
-    bool set_rcs_online(const std::string& args);
-    bool soft_reset();
-    bool get_rack_number();
-    bool check_showmap_update_status(const std::string& args);
-    bool start_mapping();
-    bool save_location_map(const std::string& args);
-    bool end_mapping();
-    bool get_wares();
-    bool delete_ware(const std::string& args);
-    bool modify_ware(const std::string& args);
-    bool add_ware(const std::string& args);
-
-    // 新增：双臂机器人控制 API 的私有实现
-    bool enable_robot(const std::string& args);
-    bool set_coordinate_system(const std::string& args);
-    bool set_tool(const std::string& args);
-    bool jog_single_axis(const std::string& args);
-    bool one_click_homing(const std::string& args);
-    bool get_teachin_file_list();
-    bool push_teachin_points(const std::string& points);
-    bool get_teachin_points(const std::string& file_name);
-    bool delete_teachin_files(const std::string& filenames);
 
     bool is_directory(const std::string& path);
     std::string get_response(ERROR_CODE ec, const std::string& msg);
