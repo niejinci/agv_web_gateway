@@ -2,7 +2,7 @@
 // 1. Three.js 3D 场景初始化
 // ==========================================
 const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 5000);
 camera.position.set(0, 15, 15);
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
@@ -10,7 +10,8 @@ document.body.appendChild(renderer.domElement);
 const controls = new THREE.OrbitControls(camera, renderer.domElement);
 
 // 网格地面
-const gridHelper = new THREE.GridHelper(50, 50, 0x444444, 0x222222);
+// 200米 x 200米的大小，划分为 100 个格子 (每个格子 2x2 米)
+const gridHelper = new THREE.GridHelper(200, 100, 0x444444, 0x222222);
 gridHelper.rotation.x = Math.PI / 2;
 scene.add(gridHelper);
 
@@ -26,29 +27,65 @@ rosRoot.add(agvGroup);
 const axesHelper = new THREE.AxesHelper(1.5); // 增加红绿蓝坐标轴代表小车方向 (红=X前, 绿=Y左)
 agvGroup.add(axesHelper);
 
+function createTextSprite(message, color) {
+    const canvas = document.createElement('canvas');
+    canvas.width = 128;
+    canvas.height = 128;
+    const context = canvas.getContext('2d');
+    context.font = "Bold 60px Arial";
+    context.fillStyle = color;
+    context.textAlign = "center";
+    context.textBaseline = "middle";
+    context.fillText(message, 64, 64);
+
+    const texture = new THREE.CanvasTexture(canvas);
+    const spriteMaterial = new THREE.SpriteMaterial({ map: texture, transparent: true });
+    const sprite = new THREE.Sprite(spriteMaterial);
+    sprite.scale.set(0.6, 0.6, 1); // 调整文字大小
+    return sprite;
+}
+
+// 在轴的末端稍微往外一点的位置 (1.7) 放上文字
+const spriteX = createTextSprite('X', '#ff4444');
+spriteX.position.set(1.7, 0, 0);
+agvGroup.add(spriteX);
+
+const spriteY = createTextSprite('Y', '#44ff44');
+spriteY.position.set(0, 1.7, 0);
+agvGroup.add(spriteY);
+
+const spriteZ = createTextSprite('Z', '#44aaff');
+spriteZ.position.set(0, 0, 1.7);
+agvGroup.add(spriteZ);
+
 // 2. Point Cloud (全局点云 - 灰色)
-const matPcl = new THREE.PointsMaterial({ color: 0xaaaaaa, size: 0.05 });
+const matPcl = new THREE.PointsMaterial({ color: 0xaaaaaa, size: 0.2 });
 const meshPcl = new THREE.Points(new THREE.BufferGeometry(), matPcl);
+meshPcl.frustumCulled = false; // 【核心修复】：关闭视锥体剔除！强制每一帧都渲染
 rosRoot.add(meshPcl);
 
 // 3. Scan2PointCloud (避障点云 - 红色)
 const matScan2Pcl = new THREE.PointsMaterial({ color: 0xff0000, size: 0.08 });
 const meshScan2Pcl = new THREE.Points(new THREE.BufferGeometry(), matScan2Pcl);
+meshScan2Pcl.frustumCulled = false; // 【核心修复】：关闭视锥体剔除！强制每一帧都渲染
 rosRoot.add(meshScan2Pcl);
 
 // 4. Obstacle Pcl (障碍物点云 - 橙色)
 const matObstPcl = new THREE.PointsMaterial({ color: 0xffaa00, size: 0.08 });
 const meshObstPcl = new THREE.Points(new THREE.BufferGeometry(), matObstPcl);
+meshObstPcl.frustumCulled = false; // 【核心修复】：关闭视锥体剔除！强制每一帧都渲染
 rosRoot.add(meshObstPcl);
 
 // 5. Model Polygon (小车模型轮廓 - 蓝色线条)
 const matModelPoly = new THREE.LineBasicMaterial({ color: 0x00aaff, linewidth: 2 });
 const meshModelPoly = new THREE.LineLoop(new THREE.BufferGeometry(), matModelPoly);
+meshModelPoly.frustumCulled = false; // 【核心修复】：关闭视锥体剔除！强制每一帧都渲染
 rosRoot.add(meshModelPoly);
 
-// 6. Obstacle Polygon (避障轮廓 - 品红色��条)
+// 6. Obstacle Polygon (避障轮廓 - 品红色线条)
 const matObstPoly = new THREE.LineBasicMaterial({ color: 0xff00ff, linewidth: 2 });
 const meshObstPoly = new THREE.LineLoop(new THREE.BufferGeometry(), matObstPoly);
+meshObstPoly.frustumCulled = false; // 关闭剔除，确保始终渲染
 rosRoot.add(meshObstPoly);
 
 
