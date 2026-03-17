@@ -43,6 +43,9 @@ void AgvWebGateway::run(const std::string& agv_ip, uint16_t agv_port, uint16_t w
     });
 
     std::cout << "[Gateway] WebSocket 服务已启动，监听端口: " << ws_port << std::endl;
+
+    // 开启 SO_REUSEADDR，解决重启时的 TIME_WAIT 端口占用问题
+    m_server.set_reuse_addr(true);
     m_server.listen(asio::ip::tcp::v4(), ws_port);
     m_server.start_accept();
     // websocketpp 的 run() 内部源码其实就是： m_io_context->run();
