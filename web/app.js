@@ -115,6 +115,8 @@ document.getElementById('btn-get_log').onclick = () => {
     ws.send("get_log_list");
 };
 
+let isFirstPosition = true;
+
 // ==========================================
 // 3. WebSocket 数据解析与渲染
 // ==========================================
@@ -149,8 +151,23 @@ ws.onmessage = (event) => {
                 updatePolygon(meshObstPoly.geometry, data.polygon.points);
                 break;
             case 'agv_position':
+                // 1. 更新小车本体在 ROS 坐标系下的位置
                 agvGroup.position.set(data.x, data.y, data.z);
                 agvGroup.rotation.z = data.theta; // 偏航角
+
+                // 2. 获取小车在 Three.js 世界坐标系下的绝对位置
+                let worldPos = new THREE.Vector3();
+                agvGroup.getWorldPosition(worldPos);
+
+                // 3. 第一次收到位置时，把相机搬到小车的斜上方 15 米处
+                if (isFirstPosition) {
+                    camera.position.set(worldPos.x, worldPos.y + 15, worldPos.z + 15);
+                    isFirstPosition = false;
+                }
+
+                // 4. 让鼠标控制器的中心点（焦点）时刻死死盯住小车
+                controls.target.copy(worldPos);
+
                 break;
             case 'log_list':
                 // 格式化输出 JSON
