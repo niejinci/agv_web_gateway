@@ -157,24 +157,44 @@ void AgvWebGateway::on_http(websocketpp::connection_hdl hdl) {
     } else if (uri == "/app.js") {
         filename = "../web/app.js";
         content_type = "application/javascript; charset=utf-8";
-    } else if (uri != "/") {
+    } else if (uri == "/SS27.pcd") {
+        filename = "../web/SS27.pcd";
+        content_type = "application/octet-stream"; // 二进制流格式
+    } else if (uri != "/") { // 允许下载 PCD 地图文件
         // 请求了不存在的文件
         con->set_status(websocketpp::http::status_code::not_found);
         con->set_body("404 Not Found");
         return;
     }
 
-    // 读取文件内容并发给浏览器
-    std::ifstream file(filename, std::ios::in | std::ios::binary);
-    if (file) {
-        std::stringstream buffer;
-        buffer << file.rdbuf();
-        con->set_body(buffer.str());
-        con->set_status(websocketpp::http::status_code::ok);
-        con->append_header("Content-Type", content_type);
+
+    // 【修改开始：使用严格的二进制读取方式】
+    // 注意：这里的 ios::ate 会在打开时把指针放到文件末尾，方便我们获取文件大小
+    std::ifstream file(filename, std::ios::in | std::ios::binary | std::ios::ate);
+
+    if (file.is_open()) {
+        // 1. 获取文件的真实字节大小
+        std::streamsize size = file.tellg();
+        file.seekg(0, std::ios::beg); // 把指针移回文件开头
+
+        // 2. 预先分配好内存空间，绝不会因为特殊字符截断
+        std::string buffer;
+        buffer.resize(size);
+
+        // 3. 一次性把二进制数据读入内存
+        if (file.read(&buffer[0], size)) {
+            con->set_body(buffer);
+            con->set_status(websocketpp::http::status_code::ok);
+            con->append_header("Content-Type", content_type);
+            // 【新增这一行】：明确告诉浏览器，传完大文件后主动关闭 HTTP 流，防止被占用
+            con->append_header("Connection", "close");
+        } else {
+            con->set_status(websocketpp::http::status_code::internal_server_error);
+            con->set_body("Error: Failed to read the binary file.");
+        }
     } else {
         // 文件找不到时的报错
-        con->set_status(websocketpp::http::status_code::internal_server_error);
-        con->set_body("Error: Cannot find web files. Make sure the 'web' folder is in the correct path.");
+        con->set_status(websocketpp::http::status_code::not_found);
+        con->set_body("404 Not Found: Cannot open file " + filename);
     }
 }
