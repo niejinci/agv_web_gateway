@@ -64,3 +64,52 @@ button.stop-btn:hover { background-color: #ff5500; }
     box-sizing: border-box;
     white-space: pre-wrap;
 }
+
+/* =========================================
+   右下角图例面板样式
+   ========================================= */
+#legend-panel {
+    position: absolute;
+    bottom: 20px;
+    right: 20px;
+    background: rgba(30, 30, 30, 0.85);
+    color: white;
+    padding: 10px 15px;
+    border-radius: 8px;
+    border: 1px solid #444;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+    /* 关键：让鼠标点击穿透图例，这样在图例上按住左键依然可以旋转 3D 场景 */
+    pointer-events: none;
+    z-index: 100;
+}
+
+#legend-panel h4 {
+    margin: 0 0 10px 0;
+    font-size: 14px;
+    border-bottom: 1px solid #555;
+    padding-bottom: 5px;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    margin-bottom: 8px;
+    font-size: 12px;
+}
+
+/* 针对点云的方块图标 */
+.color-box {
+    width: 12px;
+    height: 12px;
+    display: inline-block;
+    margin-right: 8px;
+    border-radius: 2px;
+}
+
+/* 针对多边形轮廓的线条图标 */
+.line-box {
+    width: 14px;
+    height: 0;
+    display: inline-block;
+    margin-right: 8px;
+}

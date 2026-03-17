@@ -36,6 +36,26 @@
         </div>
     </div>
 
+    <!-- 右下角的颜色图例面板 -->
+    <div id="legend-panel">
+        <h4>图例 (Legend)</h4>
+        <div class="legend-item">
+            <span class="color-box" style="background: #aaaaaa;"></span> 全局点云 (Global Map)
+        </div>
+        <div class="legend-item">
+            <span class="color-box" style="background: #ff0000;"></span> 避障点云 (Scan2Pcl)
+        </div>
+        <div class="legend-item">
+            <span class="color-box" style="background: #ffaa00;"></span> 障碍物点云 (Obst Pcl)
+        </div>
+        <div class="legend-item">
+            <span class="line-box" style="border-bottom: 2px solid #00aaff;"></span> 模型轮廓 (车体)
+        </div>
+        <div class="legend-item">
+            <span class="line-box" style="border-bottom: 2px solid #ff00ff;"></span> 避障轮廓 (安全区)
+        </div>
+    </div>
+
     <!-- 核心逻辑 -->
     <script src="app.js"></script>
 </body>
