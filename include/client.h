@@ -103,6 +103,7 @@ public:
     void cancel_get_model_polygon();
 
     bool get_log_list(ResponseHandler handler);
+    bool get_map_list(ResponseHandler handler);
 
 public:
     // 单次调用接口
@@ -282,6 +283,8 @@ private:
     // 辅助函数
     bool is_valid_port(const std::string& portStr);
     bool is_valid_ipv4(const std::string& ip);
+
+    bool get_map_list();
 
 public:
     // 操作模式常量

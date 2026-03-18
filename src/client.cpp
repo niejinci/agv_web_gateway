@@ -1233,4 +1233,15 @@ bool Client::get_log_list()
     return send_request("GET_LOG_LIST", "");
 }
 
+// 获取地图文件列表 api
+bool Client::get_map_list(ResponseHandler handler)
+{
+    return process_request("GET_MAP_LIST", handler, [this]() {return get_map_list();});
+}
+
+bool Client::get_map_list()
+{
+    return send_request("GET_MAP_LIST", "");
+}
+
 }//end of namespace
