@@ -27,6 +27,12 @@
             <h3>数据流控制</h3>
             <div class="control-row">点云 (Point Cloud) <button id="btn-point_cloud">Stop</button></div>
             <div class="control-row">位置 (AGV Position) <button id="btn-agv_position">Stop</button></div>
+            <!--在下方插入视角跟随复选框 -->
+            <div style="padding-left: 10px; margin-bottom: 10px; font-size: 13px; color: #00aaff;">
+                <label style="cursor: pointer;">
+                    <input type="checkbox" id="cb-follow" checked> 🎥 视角跟随小车
+                </label>
+            </div>
             <div class="control-row">避障轮廓 (Obst Polygon) <button id="btn-obst_polygon">Stop</button></div>
             <div class="control-row">模型轮廓 (Model Polygon) <button id="btn-model_polygon">Stop</button></div>
             <div class="control-row">避障点云 (Scan2Pcl) <button id="btn-scan2pointcloud">Stop</button></div>

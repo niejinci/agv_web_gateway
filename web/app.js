@@ -229,15 +229,31 @@ ws.onmessage = (event) => {
                 let worldPos = new THREE.Vector3();
                 agvGroup.getWorldPosition(worldPos);
 
-                // 3. 第一次收到位置时，把相机搬到小车的斜上方 15 米处
+                // 3. 【全新升级：完美的视角跟随逻辑】
                 if (isFirstPosition) {
+                    // 第一次：直接把相机搬到小车上方 15 米处
                     camera.position.set(worldPos.x, worldPos.y + 15, worldPos.z + 15);
+                    controls.target.copy(worldPos);
+                    controls.update(); // 必须调用 update 让控制器应用新焦点
                     isFirstPosition = false;
+                } else {
+                    // 后续帧：获取页面上复选框的状态
+                    const cbFollow = document.getElementById('cb-follow');
+                    if (cbFollow && cbFollow.checked) {
+                        // 航拍平移算法核心：
+                        // a. 计算出目前相机和当前焦点的“相对偏移量 (offset)”
+                        const offset = new THREE.Vector3().subVectors(camera.position, controls.target);
+
+                        // b. 把焦点移动到小车的新位置
+                        controls.target.copy(worldPos);
+
+                        // c. 把相机也同步移动（新焦点位置 + 刚才的偏移量）
+                        camera.position.copy(worldPos).add(offset);
+
+                        controls.update();
+                    }
+                    // 如果没有勾选，则什么也不做，让用户自由漫游
                 }
-
-                // 4. 让鼠标控制器的中心点（焦点）时刻死死盯住小车
-                controls.target.copy(worldPos);
-
                 break;
             case 'log_list':
                 // 格式化输出 JSON
