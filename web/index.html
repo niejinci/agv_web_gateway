@@ -4,11 +4,10 @@
     <meta charset="UTF-8">
     <title>AGV Web 3D Viz</title>
     <link rel="stylesheet" href="style.css">
-    <!-- 引入 Three.js 及鼠标控制插件 -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
-    <!-- 【新增这一行】：引入 PCD 加载器 -->
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/PCDLoader.js"></script>
+    <!-- 引入本地的 Three.js 及依赖库，支持纯内网断网运行 -->
+    <script src="libs/three.min.js"></script>
+    <script src="libs/OrbitControls.js"></script>
+    <script src="libs/PCDLoader.js"></script>
 </head>
 <body>
     <!-- 左侧控制面板 -->

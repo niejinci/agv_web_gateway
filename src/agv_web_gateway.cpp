@@ -172,6 +172,12 @@ void AgvWebGateway::on_http(websocketpp::connection_hdl hdl) {
         filename = "../web/app.js";
         content_type = "application/javascript; charset=utf-8";
     }
+    // 拦截所有对第三方库的请求，实现离线化支持
+    else if (uri.find("/libs/") == 0) {
+        // 直接拼接出 ../web/libs/xxx.js 的路径
+        filename = "../web" + uri;
+        content_type = "application/javascript; charset=utf-8";
+    }
     //【全新替换】：不再写死 /SS27.pcd，而是拦截所有以 /pcd/ 开头的请求
     else if (uri.find("/pcd/") == 0) {
         // uri 的格式是 "/pcd/pc/SS27"
