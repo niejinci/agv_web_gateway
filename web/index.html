@@ -31,6 +31,12 @@
                 </select>
                 <button id="btn-load-map" style="padding: 3px 8px; cursor: pointer;">加载地图</button>
             </div>
+            <!-- 【新增】：强制更新缓存的复选框 -->
+            <div style="font-size: 12px; color: #ffaa00; margin-bottom: 15px;">
+                <label style="cursor: pointer;">
+                    <input type="checkbox" id="cb-force-update"> ⚠️ 强制重新下载最新地图 (忽略缓存)
+                </label>
+            </div>
 
             <h3>数据流控制</h3>
             <div class="control-row">点云 (Point Cloud) <button id="btn-point_cloud">Stop</button></div>

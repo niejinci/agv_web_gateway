@@ -181,7 +181,13 @@ void AgvWebGateway::on_http(websocketpp::connection_hdl hdl) {
     //【全新替换】：不再写死 /SS27.pcd，而是拦截所有以 /pcd/ 开头的请求
     else if (uri.find("/pcd/") == 0) {
         // uri 的格式是 "/pcd/pc/SS27"
-        std::string sub_path = uri.substr(5); // 截取出 "pc/SS27"
+        std::string sub_path = uri.substr(5); // 截取出 "pc/SS27?t=12345"
+
+        // 【新增：关键修复】：去除 URL 参数（丢弃 '?' 及其后面的所有内容）
+        size_t question_mark_pos = sub_path.find('?');
+        if (question_mark_pos != std::string::npos) {
+            sub_path = sub_path.substr(0, question_mark_pos); // sub_path 变回 "pc/SS27"
+        }
 
         size_t slash_pos = sub_path.find('/');
         if (slash_pos != std::string::npos) {
@@ -204,6 +210,8 @@ void AgvWebGateway::on_http(websocketpp::connection_hdl hdl) {
                     con->set_body(buffer);
                     con->set_status(websocketpp::http::status_code::ok);
                     con->append_header("Content-Type", "application/octet-stream");
+                    // 【新增】：加上 24 小时超长缓存
+                    con->append_header("Cache-Control", "public, max-age=86400");
                     con->append_header("Connection", "close"); // 传完即关，防止拥堵
                     return; // 成功直接返回
                 }

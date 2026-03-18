@@ -138,7 +138,12 @@ document.getElementById('btn-load-map').onclick = () => {
     }
 
     // 2. 拼装动态请求的 URL (例如: /pcd/pc/SS27)
-    const pcdUrl = `/pcd/${selected}`;
+    let pcdUrl = `/pcd/${selected}`;
+    // 【新增】：如果勾选了强制更新，就在 URL 后面挂一个随机时间戳！
+    const forceUpdate = document.getElementById('cb-force-update').checked;
+    if (forceUpdate) {
+        pcdUrl += `?t=${new Date().getTime()}`; // 例如：/pcd/pc/SS27?t=1700000000000
+    }
     console.log("准备下载并加载地图: " + pcdUrl);
 
     // 3. 开始加载新地图
