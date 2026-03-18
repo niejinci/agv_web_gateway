@@ -21,34 +21,9 @@ rosRoot.rotation.x = -Math.PI / 2;
 scene.add(rosRoot);
 
 // ==========================================
-// 1.5 加载全局 PCD 点云地图 (SS27.pcd)
+// 1.5 【修改】：移除原来写死的 PCD 加载代码，改为动态全局变量
 // ==========================================
-const pcdLoader = new THREE.PCDLoader();
-
-// 加载刚刚放在 web 目录下的 SS27.pcd
-pcdLoader.load(
-    'SS27.pcd',
-    function (points) {
-        // 加载成功后的回调
-
-        // 1. 调整地图点云的颜色和大小 (让它作为灰暗的背景，不喧宾夺主)
-        points.material.color.setHex(0x555555); // 深灰色
-        points.material.size = 0.2;             // 点的大小
-
-        // 2. 将地图加入到 ROS 坐标系节点下，确保和小车坐标系完美对齐！
-        rosRoot.add(points);
-
-        console.log("地图加载成功！点数:", points.geometry.attributes.position.count);
-    },
-    function (xhr) {
-        // 加载进度回调 (可以在控制台看下载进度)
-        console.log((xhr.loaded / xhr.total * 100) + '% loaded');
-    },
-    function (error) {
-        // 错误回调
-        console.error('地图加载出错:', error);
-    }
-);
+let currentMapPoints = null; // 用于记录当前加载的地图，方便切换时清理旧地图
 
 // --- 创建各种图形容器与材质 ---
 // 1. 小车坐标容器 (代表小车中心)
@@ -142,12 +117,56 @@ ws.onopen = () => {
     statusDiv.textContent = '已连接到网关 (127.0.0.1:8080)';
     statusDiv.classList.add('connected');
 
+    // 连上网关后，立刻请求底层的地图列表！
+    ws.send("get_map_list");
+
     // 连接成功后，默认自动请求开启所有数据流
 
     // 让系统保持安静，等待地图专心下载
     // Object.keys(streamState).forEach(key => {
     //     ws.send(`start_${key}`);
     // });
+};
+
+// 【新增】：绑定加载地图按钮点击事件
+document.getElementById('btn-load-map').onclick = () => {
+    const selected = document.getElementById('map-select').value;
+    if (!selected) {
+        alert("请先选择一个地图！");
+        return;
+    }
+
+    // 1. 如果之前已经加载过地图，先从场景中移除���释放内存
+    if (currentMapPoints) {
+        rosRoot.remove(currentMapPoints);
+        currentMapPoints.geometry.dispose();
+        currentMapPoints.material.dispose();
+        currentMapPoints = null;
+    }
+
+    // 2. 拼装动态请求的 URL (例如: /pcd/pc/SS27)
+    const pcdUrl = `/pcd/${selected}`;
+    console.log("准备下载并加载地图: " + pcdUrl);
+
+    // 3. 开始加载新地图
+    const pcdLoader = new THREE.PCDLoader();
+    pcdLoader.load(
+        pcdUrl,
+        function (points) {
+            points.material.color.setHex(0x555555); // 深灰色
+            points.material.size = 0.2;
+            rosRoot.add(points);
+            currentMapPoints = points; // 记录当前地图
+            console.log("✅ 地图加载成功！点数:", points.geometry.attributes.position.count);
+        },
+        function (xhr) {
+            console.log((xhr.loaded / xhr.total * 100).toFixed(2) + '% loaded');
+        },
+        function (error) {
+            console.error('地图加载出错:', error);
+            alert("加载失败：可能该地图没有对应的 .pcd 3D点云文件！");
+        }
+    );
 };
 
 ws.onclose = () => {
@@ -195,6 +214,32 @@ ws.onmessage = (event) => {
         const msg = JSON.parse(event.data);
         const type = msg.type;
         const res = msg.payload;
+
+            // 【新增】：处理底层返回的地图列表
+        if (type === 'map_list') {
+            if (res.code === 0 && res.data) {
+                const mapSelect = document.getElementById('map-select');
+                mapSelect.innerHTML = ''; // 清空原有选项
+
+                // 遍历解析返回的 JSON (如 pc, rcs 分类)
+                for (const category in res.data) {
+                    const mapFiles = res.data[category];
+                    mapFiles.forEach(fileName => {
+                        // 把 "SS27.smap" 去掉后缀，变成 "SS27"
+                        const mapName = fileName.replace('.smap', '');
+                        const option = document.createElement('option');
+                        // value 存成 "pc/SS27" 的格式，方便后端解析
+                        option.value = `${category}/${mapName}`;
+                        option.textContent = `[${category}] ${mapName}`;
+                        mapSelect.appendChild(option);
+                    });
+                }
+                console.log("地图列表更新完毕");
+            } else {
+                console.warn("获取地图列表失败:", res.message);
+            }
+            return;
+        }
 
         if (res.code !== 0) {
             console.warn(`[${type}] 错误:`, res.message);

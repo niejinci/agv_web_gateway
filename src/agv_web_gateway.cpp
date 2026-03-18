@@ -67,6 +67,20 @@ void AgvWebGateway::on_message(websocketpp::connection_hdl hdl, server::message_
     std::string cmd = msg->get_payload();
     std::cout << "[Gateway] 收到前端指令: " << cmd << std::endl;
 
+        // 【新增】：处理获取地图列表请求
+    if (cmd == "get_map_list") {
+        // 调用底层的 API 获取地图列表
+        m_client->get_map_list([this, hdl](const std::string& res) {
+            // res 已经是底层返回的 JSON 字符串，我们需要给它包一层 "type":"map_list" 发给前端
+            // 为了安全，直接拼接字符串
+            std::string send_str = "{\"type\":\"map_list\",\"payload\":" + res + "}";
+
+            // 将拼装好的 JSON 通过 WebSocket 发给前端
+            m_server.send(hdl, send_str, websocketpp::frame::opcode::text);
+        });
+        return;
+    }
+
     // 以下点云，服务端支持的最高请求频率 5hz。
     // 小车点云(稀疏，显示用)
     if (cmd == "start_point_cloud") {
@@ -157,10 +171,43 @@ void AgvWebGateway::on_http(websocketpp::connection_hdl hdl) {
     } else if (uri == "/app.js") {
         filename = "../web/app.js";
         content_type = "application/javascript; charset=utf-8";
-    } else if (uri == "/SS27.pcd") {
-        filename = "../web/SS27.pcd";
-        content_type = "application/octet-stream"; // 二进制流格式
-    } else if (uri != "/") { // 允许下载 PCD 地图文件
+    }
+    //【全新替换】：不再写死 /SS27.pcd，而是拦截所有以 /pcd/ 开头的请求
+    else if (uri.find("/pcd/") == 0) {
+        // uri 的格式是 "/pcd/pc/SS27"
+        std::string sub_path = uri.substr(5); // 截取出 "pc/SS27"
+
+        size_t slash_pos = sub_path.find('/');
+        if (slash_pos != std::string::npos) {
+            std::string category = sub_path.substr(0, slash_pos);     // 取出 "pc"
+            std::string map_name = sub_path.substr(slash_pos + 1);    // 取出 "SS27"
+
+            // 【核心】：直接组装出 AGV 底层的绝对物理路径！
+            // 结果如: /home/byd/data/map/pc/SS27/SS27.pcd
+            std::string filepath = "/home/byd/data/map/" + category + "/" + map_name + "/" + map_name + ".pcd";
+
+            // 严格的二进制内存块读取
+            std::ifstream file(filepath, std::ios::in | std::ios::binary | std::ios::ate);
+            if (file.is_open()) {
+                std::streamsize size = file.tellg();
+                file.seekg(0, std::ios::beg);
+                std::string buffer;
+                buffer.resize(size);
+
+                if (file.read(&buffer[0], size)) {
+                    con->set_body(buffer);
+                    con->set_status(websocketpp::http::status_code::ok);
+                    con->append_header("Content-Type", "application/octet-stream");
+                    con->append_header("Connection", "close"); // 传完即关，防止拥堵
+                    return; // 成功直接返回
+                }
+            }
+            // 文件不存在或打开失败
+            con->set_status(websocketpp::http::status_code::not_found);
+            con->set_body("404 Not Found: Cannot open " + filepath + " (可能该厂房未生成3D点云地图)");
+            return;
+        }
+    } else if (uri != "/") {
         // 请求了不存在的文件
         con->set_status(websocketpp::http::status_code::not_found);
         con->set_body("404 Not Found");

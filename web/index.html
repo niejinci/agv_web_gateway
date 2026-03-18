@@ -24,6 +24,15 @@
             <h3>网关状态</h3>
             <div id="status">未连接</div>
 
+            <!-- 【全新增加】：地图选择器 -->
+            <h3>地图选择</h3>
+            <div style="margin-bottom: 15px; display: flex; gap: 5px;">
+                <select id="map-select" style="flex: 1; padding: 3px;">
+                    <option value="">等待获取地图列表...</option>
+                </select>
+                <button id="btn-load-map" style="padding: 3px 8px; cursor: pointer;">加载地图</button>
+            </div>
+
             <h3>数据流控制</h3>
             <div class="control-row">点云 (Point Cloud) <button id="btn-point_cloud">Stop</button></div>
             <div class="control-row">位置 (AGV Position) <button id="btn-agv_position">Stop</button></div>
