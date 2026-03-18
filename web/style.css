@@ -21,7 +21,24 @@ body {
     z-index: 100;
 }
 
-h3 { margin-top: 0; font-size: 16px; border-bottom: 1px solid #555; padding-bottom: 5px; }
+/* =========================================
+   优化：控制面板标题与逻辑版块分割
+   ========================================= */
+#panel-content h3 {
+    margin: 25px 0 10px 0;      /* 【关键】拉开与上一个版块的距离 (上边距25px) */
+    padding-top: 15px;          /* 让文字和顶部分割线保持呼吸感 */
+    border-top: 1px solid #555; /* 【关键】把线移到上方，作为两个版块的分割线 */
+    border-bottom: none;        /* 去掉原本奇怪的底部下划线 */
+    font-size: 15px;
+    color: #eeeeee;
+}
+
+/* 第一个逻辑版块（网关状态）的上方不需要分割线和多余间距 */
+#panel-content h3:first-of-type {
+    margin-top: 10px;
+    padding-top: 0;
+    border-top: none;
+}
 
 /* 状态指示 */
 #status { margin-bottom: 15px; font-weight: bold; color: #ff4444; }
