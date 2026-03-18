@@ -119,13 +119,6 @@ ws.onopen = () => {
 
     // 连上网关后，立刻请求底层的地图列表！
     ws.send("get_map_list");
-
-    // 连接成功后，默认自动请求开启所有数据流
-
-    // 让系统保持安静，等待地图专心下载
-    // Object.keys(streamState).forEach(key => {
-    //     ws.send(`start_${key}`);
-    // });
 };
 
 // 【新增】：绑定加载地图按钮点击事件
