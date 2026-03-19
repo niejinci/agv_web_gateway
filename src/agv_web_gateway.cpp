@@ -32,29 +32,33 @@ AgvWebGateway::~AgvWebGateway() {
 }
 
 void AgvWebGateway::run(const std::string& agv_ip, uint16_t agv_port, uint16_t ws_port) {
-    std::cout << "[Gateway] 连接 AGV 服务端 " << agv_ip << ":" << agv_port << " ..." << std::endl;
-    // 假设你的 client 有类似 connect 的方法，如果没有请根据实际修改
+    LogManager::getInstance().getLogger()->info("连接 AGV 服务端 {}:{}", agv_ip, agv_port);
+    // 连接后端服务
     m_client->connect(agv_ip, std::to_string(agv_port), [agv_port](bool success) {
         if (success) {
-            std::cout << "[Gateway] 成功连接到 AGV 服务端! port=" << agv_port << std::endl;
+            LogManager::getInstance().getLogger()->info("成功连接到 AGV 服务端! port={}", agv_port);
         } else {
-            std::cerr << "[Gateway] 连接 AGV 服务端失败! port=" << agv_port << std::endl;
+            LogManager::getInstance().getLogger()->warn("连接 AGV 服务端失败! port={}", agv_port);
         }
     });
-
-    std::cout << "[Gateway] WebSocket 服务已启动，监听端口: " << ws_port << std::endl;
+    LogManager::getInstance().getLogger()->info("WebSocket 服务已启动，监听端口: {}", ws_port);
 
     // 开启 SO_REUSEADDR，解决重启时的 TIME_WAIT 端口占用问题
     m_server.set_reuse_addr(true);
     m_server.listen(asio::ip::tcp::v4(), ws_port);
     m_server.start_accept();
+
     // websocketpp 的 run() 内部源码其实就是： m_io_context->run();
     // 这一句跑起来，WebSocket 的网络事件和 Client 的网络事件就都在这个主线程里被分发处理了！
     m_server.run(); // 阻塞运行，基于 asio 的事件循环
 }
 
 void AgvWebGateway::on_open(websocketpp::connection_hdl hdl) {
-    std::cout << "[Gateway] 浏览器前端已连接!" << std::endl;
+    // 1. 获取客户端的远端端点信息 (格式通常为 "IP:Port")
+    server::connection_ptr con = m_server.get_con_from_hdl(hdl);
+    std::string client_ip = con->get_remote_endpoint();
+    LogManager::getInstance().getLogger()->info("浏览器前端已连接, IP: {}", client_ip);
+
     // 添加连接并同步数量给下位机客户端
     m_connections.insert(hdl);
     if (m_client) {
@@ -63,7 +67,11 @@ void AgvWebGateway::on_open(websocketpp::connection_hdl hdl) {
 }
 
 void AgvWebGateway::on_close(websocketpp::connection_hdl hdl) {
-    std::cout << "[Gateway] 浏览器前端断开连接." << std::endl;
+    // 获取客户端的远端端点信息 (格式通常为 "IP:Port")
+    server::connection_ptr con = m_server.get_con_from_hdl(hdl);
+    std::string client_ip = con->get_remote_endpoint();
+    LogManager::getInstance().getLogger()->info("浏览器前端断开连接, IP: {}", client_ip);
+
     // 移除连接并同步数量给下位机客户端
     m_connections.erase(hdl);
     if (m_client) {
@@ -75,9 +83,9 @@ void AgvWebGateway::on_close(websocketpp::connection_hdl hdl) {
 
 void AgvWebGateway::on_message(websocketpp::connection_hdl hdl, server::message_ptr msg) {
     std::string cmd = msg->get_payload();
-    std::cout << "[Gateway] 收到前端指令: " << cmd << std::endl;
+    LogManager::getInstance().getLogger()->info("收到前端指令: {}", cmd);
 
-        // 【新增】：处理获取地图列表请求
+    // 处理获取地图列表请求
     if (cmd == "get_map_list") {
         // 调用底层的 API 获取地图列表
         m_client->get_map_list([this, hdl](const std::string& res) {
@@ -146,7 +154,7 @@ void AgvWebGateway::on_message(websocketpp::connection_hdl hdl, server::message_
             send_to_frontend(hdl, "log_list", json_resp);
         });
     }  else {
-        std::cout << "[Gateway] 未知指令: " << cmd << std::endl;
+        LogManager::getInstance().getLogger()->info("未知指令: {}", cmd);
     }
     // TODO: 其他接口...
 }

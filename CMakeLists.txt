@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.10)
 project(agv_web_gateway)
 
 # 设置 C++ 标准为 C++14 或以上 (你的 client 库可能需要)
-set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # 告诉 websocketpp 我们使用的是独立的 asio，不依赖 boost
@@ -18,6 +18,7 @@ include_directories(
 
 # 查找系统线程库 (asio 和 websocketpp 需要)
 find_package(Threads REQUIRED)
+find_package(fmt REQUIRED)
 
 # 添加所有的源文件
 set(SOURCES
@@ -29,7 +30,7 @@ set(SOURCES
 add_executable(${PROJECT_NAME} ${SOURCES})
 
 # 链接线程库
-target_link_libraries(${PROJECT_NAME} Threads::Threads)
+target_link_libraries(${PROJECT_NAME} Threads::Threads fmt::fmt)
 
 # ===================================================================
 # ==== 在 cmake 阶段直接拷贝依赖资源 (不需要 make install) ====
