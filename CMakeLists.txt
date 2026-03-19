@@ -30,3 +30,31 @@ add_executable(${PROJECT_NAME} ${SOURCES})
 
 # 链接线程库
 target_link_libraries(${PROJECT_NAME} Threads::Threads)
+
+# ===================================================================
+# ==== 资源拷贝与路径管理 (支持脚本指定路径 & 本地默认兜底) ====
+# ===================================================================
+
+# 1. 针对可执行文件和 web 目录的兜底
+if(NOT DEFINED EXECUTABLE_OUTPUT_PATH)
+    # 如果没传宏，默认把二进制放在 build/bin 下
+    set(EXECUTABLE_OUTPUT_PATH ${CMAKE_CURRENT_BINARY_DIR}/bin)
+    # 显式告诉 CMake 把可执行文件输出到兜底目录，而不是默认的 build/ 根目录
+    set_target_properties(${PROJECT_NAME} PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${EXECUTABLE_OUTPUT_PATH})
+endif()
+
+# 此时 EXECUTABLE_OUTPUT_PATH 绝对有值了，立刻拷贝 web 文件夹到它上一级
+# 例如: build/bin 的上一级就是 build/web，正好符合程序里 "../web" 的预期
+file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/web
+     DESTINATION ${EXECUTABLE_OUTPUT_PATH}/..)
+message(STATUS "Web directory mapped to: ${EXECUTABLE_OUTPUT_PATH}/../web")
+
+# 2. 针对 config 目录的兜底
+if(NOT DEFINED CONFIG_INSTALL_DIR)
+    # 如果没传宏，默认放到 build/config 下
+    set(CONFIG_INSTALL_DIR ${CMAKE_CURRENT_BINARY_DIR}/config)
+endif()
+
+file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/config/
+     DESTINATION ${CONFIG_INSTALL_DIR}/${PROJECT_NAME})
+message(STATUS "Config directory mapped to: ${CONFIG_INSTALL_DIR}/${PROJECT_NAME}")
