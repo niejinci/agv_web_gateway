@@ -61,6 +61,11 @@ void Client::heart_beat_callback(const std::string& reply)
     }
 }
 
+void Client::set_active_web_client_count(size_t count)
+{
+    active_web_client_count_ = count;
+}
+
 void Client::heart_beat(const asio::error_code& ec)
 {
     if (ec == asio::error::operation_aborted) {
@@ -72,7 +77,9 @@ void Client::heart_beat(const asio::error_code& ec)
     if (!current_server_ip_.empty() && !current_server_port_.empty()) {
         if (socket_.is_open()) {
             // 客户端启动过了连接, 那么就开始发送心跳
-            send_request("HEART_BEAT", R"({"data": "Ping"})");
+            // 将活跃连接数一并发送给后端
+            std::string hb_data = R"({"data": "Ping", "active_web_clients": )" + std::to_string(active_web_client_count_.load()) + R"(})";
+            send_request("HEART_BEAT", hb_data);
         } else if (!disconnect_by_user_) {
             // 如果不是用户触发的断连，那么就自动重连
             connect_lambda(current_server_ip_, current_server_port_);
@@ -80,7 +87,7 @@ void Client::heart_beat(const asio::error_code& ec)
     } else {
         log_debug("Has Not Connected to the Server Yet");
     }
-    heartbeat_timer_->expires_after(asio::chrono::seconds(19));
+    heartbeat_timer_->expires_after(asio::chrono::seconds(10));
     heartbeat_timer_->async_wait([this](const asio::error_code& ec) {
         heart_beat(ec);
     });

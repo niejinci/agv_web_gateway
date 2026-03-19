@@ -9,6 +9,7 @@
 #include <websocketpp/server.hpp>
 #include <memory>
 #include <string>
+#include <set>
 
 // 引入你的通信库头文件
 #include "client.h"
@@ -48,4 +49,6 @@ private:
     server m_server;
     asio::io_context m_io_context;
     std::shared_ptr<qclcpp::Client> m_client;   // 通信库实例
+    // 保存当前所有活跃的 WebSocket 连接
+    std::set<websocketpp::connection_hdl, std::owner_less<websocketpp::connection_hdl>> m_connections;
 };

@@ -55,10 +55,20 @@ void AgvWebGateway::run(const std::string& agv_ip, uint16_t agv_port, uint16_t w
 
 void AgvWebGateway::on_open(websocketpp::connection_hdl hdl) {
     std::cout << "[Gateway] 浏览器前端已连接!" << std::endl;
+    // 添加连接并同步数量给下位机客户端
+    m_connections.insert(hdl);
+    if (m_client) {
+        m_client->set_active_web_client_count(m_connections.size());
+    }
 }
 
 void AgvWebGateway::on_close(websocketpp::connection_hdl hdl) {
     std::cout << "[Gateway] 浏览器前端断开连接." << std::endl;
+    // 移除连接并同步数量给下位机客户端
+    m_connections.erase(hdl);
+    if (m_client) {
+        m_client->set_active_web_client_count(m_connections.size());
+    }
     // 可以在这里调用 cancel 系列 API，停止给下位机发请求
     // m_client->cancel_get_point_cloud();
 }

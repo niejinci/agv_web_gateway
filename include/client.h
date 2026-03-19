@@ -24,6 +24,7 @@
 #define INVALID_SOCKET (-1)
 #define closesocket close
 #endif
+#include <atomic>
 
 namespace qclcpp {
 const std::string requestname2cmd_file = "D:/byd_agv_in_gitee/agv_qtclient/requestname2cmd.ini";
@@ -104,6 +105,9 @@ public:
 
     bool get_log_list(ResponseHandler handler);
     bool get_map_list(ResponseHandler handler);
+    // 设置当前的活跃前端 WebSocket 客户端数量
+    void set_active_web_client_count(size_t count);
+
 
 public:
     // 单次调用接口
@@ -267,6 +271,9 @@ private:
     PeriodicTask get_qr_camera_data_task_;
     PeriodicTask get_point_cloud_task_;
     PeriodicTask get_agv_position_task_;
+
+    // 记录当前的活跃客户端数量
+    std::atomic<size_t> active_web_client_count_{0};
 
     // 私有实现
     bool get_robot_state();
