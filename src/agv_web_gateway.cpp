@@ -2,6 +2,30 @@
 #include <iostream>
 #include <functional>
 
+#ifdef __linux__
+#include <unistd.h>
+#include <limits.h>
+#endif
+
+// 新增工具函数：获取当前可执行文件所在的绝对目录路径
+std::string get_executable_dir() {
+    std::string path = "";
+#ifdef __linux__
+    char result[PATH_MAX];
+    ssize_t count = readlink("/proc/self/exe", result, PATH_MAX);
+    if (count != -1) {
+        std::string full_path(result, count);
+        // 找到最后一个 '/'，截取前面的目录部分
+        size_t last_slash = full_path.find_last_of('/');
+        if (last_slash != std::string::npos) {
+            path = full_path.substr(0, last_slash);
+        }
+    }
+#endif
+    // 兜底：如果获取失败，默认返回 "."
+    return path.empty() ? "." : path;
+}
+
 AgvWebGateway::AgvWebGateway() {
     // 1. 初始化 WebSocket 日志 (为了控制台清爽，我们关闭一些冗余日志)
     m_server.clear_access_channels(websocketpp::log::alevel::all);
@@ -21,10 +45,15 @@ AgvWebGateway::AgvWebGateway() {
     m_server.set_message_handler(std::bind(&AgvWebGateway::on_message, this, std::placeholders::_1, std::placeholders::_2));
 
     // 4. 实例化你的通信库
-    m_client = qclcpp::Client::create(m_io_context, "../config/requestname2cmd.ini");
+    // 动态获取可执行文件所在目录 (例如: /home/byd/node/agv_web_gateway/bin)
+    std::string base_dir = get_executable_dir();
+    std::string config_path = base_dir + "/../config/requestname2cmd.ini";
+    m_client = qclcpp::Client::create(m_io_context, config_path);
 
     // 5. 注册 HTTP 请求处理器
     m_server.set_http_handler(std::bind(&AgvWebGateway::on_http, this, std::placeholders::_1));
+
+    LogManager::getInstance().getLogger()->info("Executable directory: {}", base_dir);
 }
 
 AgvWebGateway::~AgvWebGateway() {
@@ -180,20 +209,23 @@ void AgvWebGateway::on_http(websocketpp::connection_hdl hdl) {
     std::string uri = con->get_resource();
 
     // 默认映射到 index.html
-    std::string filename = "../web/index.html";
+    // 动态获取可执行文件所在目录，作为 Web 资源的基础路径
+    std::string base_dir = get_executable_dir();
+
+    std::string filename = base_dir + "/../web/index.html";
     std::string content_type = "text/html; charset=utf-8";
 
     if (uri == "/style.css") {
-        filename = "../web/style.css";
+        filename = base_dir + "/../web/style.css";
         content_type = "text/css; charset=utf-8";
     } else if (uri == "/app.js") {
-        filename = "../web/app.js";
+        filename = base_dir + "/../web/app.js";
         content_type = "application/javascript; charset=utf-8";
     }
     // 拦截所有对第三方库的请求，实现离线化支持
     else if (uri.find("/libs/") == 0) {
-        // 直接拼接出 ../web/libs/xxx.js 的路径
-        filename = "../web" + uri;
+        // 直接拼接出 /base_dir/web/libs/xxx.js 的路径
+        filename = base_dir + "/../web" + uri;
         content_type = "application/javascript; charset=utf-8";
     }
     //【全新替换】：不再写死 /SS27.pcd，而是拦截所有以 /pcd/ 开头的请求
