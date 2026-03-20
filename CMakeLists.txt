@@ -54,3 +54,7 @@ message(STATUS "Web directory mapped to: ${EXECUTABLE_OUTPUT_PATH}/../web")
 file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/config
      DESTINATION ${EXECUTABLE_OUTPUT_PATH}/..)
 message(STATUS "Config directory mapped to: ${EXECUTABLE_OUTPUT_PATH}/../config")
+
+install(TARGETS
+  ${PROJECT_NAME}
+  DESTINATION /home/byd/node/${PROJECT_NAME}/bin/)
