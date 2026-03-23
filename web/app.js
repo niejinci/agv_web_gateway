@@ -16,7 +16,13 @@ gridHelper.rotation.x = Math.PI / 2;
 scene.add(gridHelper);
 
 // ROS 坐标系转换 (Z 轴朝上)
+// Three.js (前端呈现)：默认 Y 轴是朝上的（天空），Z 轴是朝向你的（深度）。
+// ROS / AGV 物理底盘 (后端数据)：通常使用另一个标准的右手系，即 Z 轴朝上（天空），X 轴朝向车头正前方，Y 轴朝向车身左侧。
+// 如果不做转换，AGV 发过来的点云直接画在 Three.js 里，原本平铺在地面（XY平面）的地图，在浏览器里就会像一堵“墙”一样竖在屏幕上。
+// 解决方案：在 Three.js 场景里创建一个父级容器（Group），把它旋转 -90 度（-Math.PI/2），让它的 Z 轴朝上。然后所有从 ROS 发过来的坐标数据都放在这个容器里，自然就完成了坐标系的转换。
 const rosRoot = new THREE.Group();
+// 绕 X 轴旋转 -90 度
+// 这会把原本朝上的 Y 轴拍下去，把原本朝向你的 Z 轴立起来当成天空，做完这个旋转后，底盘发过来的 X 和 Y 就会老老实实地趴在 Three.js 的地平面上了
 rosRoot.rotation.x = -Math.PI / 2;
 scene.add(rosRoot);
 
