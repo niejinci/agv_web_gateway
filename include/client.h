@@ -107,7 +107,7 @@ public:
     bool get_map_list(ResponseHandler handler);
     // 设置当前的活跃前端 WebSocket 客户端数量
     void set_active_web_client_count(size_t count);
-
+    bool get_multi_map_files(ResponseHandler handler);
 
 public:
     // 单次调用接口

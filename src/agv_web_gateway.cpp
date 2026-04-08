@@ -117,7 +117,7 @@ void AgvWebGateway::on_message(websocketpp::connection_hdl hdl, server::message_
     // 处理获取地图列表请求
     if (cmd == "get_map_list") {
         // 调用底层的 API 获取地图列表
-        m_client->get_map_list([this, hdl](const std::string& res) {
+        m_client->get_multi_map_files([this, hdl](const std::string& res) {
             // res 已经是底层返回的 JSON 字符串，我们需要给它包一层 "type":"map_list" 发给前端
             // 为了安全，直接拼接字符串
             std::string send_str = "{\"type\":\"map_list\",\"payload\":" + res + "}";
@@ -241,7 +241,7 @@ void AgvWebGateway::on_http(websocketpp::connection_hdl hdl) {
 
         size_t slash_pos = sub_path.find('/');
         if (slash_pos != std::string::npos) {
-            std::string category = sub_path.substr(0, slash_pos);     // 取出 "pc"
+            std::string category = sub_path.substr(0, slash_pos);     // 取出 "pc" or "rcs"
             std::string map_name = sub_path.substr(slash_pos + 1);    // 取出 "SS27"
 
             // 【核心】：直接组装出 AGV 底层的绝对物理路径！

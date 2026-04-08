@@ -1251,4 +1251,12 @@ bool Client::get_map_list()
     return send_request("GET_MAP_LIST", "");
 }
 
+// 获取多个地图目录下的所有地图文件 api
+bool Client::get_multi_map_files(ResponseHandler handler)
+{
+    return process_request("GET_MULTI_MAP_FILES", handler, [this]() {
+        return send_request("GET_MULTI_MAP_FILES", "");
+    });
+}
+
 }//end of namespace

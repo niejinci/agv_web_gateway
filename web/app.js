@@ -229,13 +229,16 @@ ws.onmessage = (event) => {
                 for (const category in res.data) {
                     const mapFiles = res.data[category];
                     mapFiles.forEach(fileName => {
-                        // 把 "SS27.smap" 去掉后缀，变成 "SS27"
-                        const mapName = fileName.replace('.smap', '');
-                        const option = document.createElement('option');
-                        // value 存成 "pc/SS27" 的格式，方便后端解析
-                        option.value = `${category}/${mapName}`;
-                        option.textContent = `[${category}] ${mapName}`;
-                        mapSelect.appendChild(option);
+                        // 判断 fileName 是否以 .pcd 结尾
+                        if (fileName.endsWith('.pcd')) {
+                            // 把 "SS27.smap" 去掉后缀，变成 "SS27"
+                            const mapName = fileName.replace('.pcd', '');
+                            const option = document.createElement('option');
+                            // value 存成 "pc/SS27" 的格式，方便后端解析
+                            option.value = `${category}/${mapName}`;
+                            option.textContent = `[${category}] ${mapName}`;
+                            mapSelect.appendChild(option);
+                        }
                     });
                 }
                 console.log("地图列表更新完毕");
