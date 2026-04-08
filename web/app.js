@@ -135,44 +135,93 @@ document.getElementById('btn-load-map').onclick = () => {
         return;
     }
 
-    // 1. 如果之前已经加载过地图，先从场景中移除���释放内存
+    // 1. 清理之前的场景（无论是 3D 还是 2D）
     if (currentMapPoints) {
         rosRoot.remove(currentMapPoints);
-        currentMapPoints.geometry.dispose();
-        currentMapPoints.material.dispose();
+        if (currentMapPoints.geometry) currentMapPoints.geometry.dispose();
+        if (currentMapPoints.material) {
+            if (currentMapPoints.material.map) currentMapPoints.material.map.dispose();
+            currentMapPoints.material.dispose();
+        }
         currentMapPoints = null;
     }
 
-    // 2. 拼装动态请求的 URL (例如: /pcd/pc/SS27)
-    // 使用 split('/') 和 encodeURIComponent 对路径中的每一段进行安全的 URL 编码，将 # 转换为 %23
-    const encodedSelected = selected.split('/').map(encodeURIComponent).join('/');
-    let pcdUrl = `/pcd/${encodedSelected}`;
-    // 【新增】：如果勾选了强制更新，就在 URL 后面挂一个随机时间戳！
+    // 2. 解析用户选择的路径，例如 "rcs/3#_1.pcd"
+    const lastDotIndex = selected.lastIndexOf('.');
+    const extension = selected.substring(lastDotIndex); // ".pcd" 或 ".png"
+    // 去掉后缀名，拿到真正的名字，例如 "rcs/3#_1"
+    const pathWithoutExt = selected.substring(0, lastDotIndex);
+
+    // 对特殊字符（如 #）进行 URL 编码
+    const encodedSelected = pathWithoutExt.split('/').map(encodeURIComponent).join('/');
+
+    // 3. 组装带有时间戳的 URL
+    let downloadUrl = extension === '.pcd' ? `/pcd/${encodedSelected}` : `/png/${encodedSelected}`;
     const forceUpdate = document.getElementById('cb-force-update').checked;
     if (forceUpdate) {
-        pcdUrl += `?t=${new Date().getTime()}`; // 例如：/pcd/pc/SS27?t=1700000000000
+        downloadUrl += `?t=${new Date().getTime()}`;
     }
-    console.log("准备下载并加载地图: " + pcdUrl);
 
-    // 3. 开始加载新地图
-    const pcdLoader = new THREE.PCDLoader();
-    pcdLoader.load(
-        pcdUrl,
-        function (points) {
-            points.material.color.setHex(0x555555); // 深灰色
-            points.material.size = 0.2;
-            rosRoot.add(points);
-            currentMapPoints = points; // 记录当前地图
-            console.log("✅ 地图加载成功！点数:", points.geometry.attributes.position.count);
-        },
-        function (xhr) {
-            console.log((xhr.loaded / xhr.total * 100).toFixed(2) + '% loaded');
-        },
-        function (error) {
-            console.error('地图加载出错:', error);
-            alert("加载失败：可能该地图没有对应的 .pcd 3D点云文件！");
-        }
-    );
+    console.log(`准备下载并加载地图 (${extension}): ${downloadUrl}`);
+
+    // 4. 根据文件类型分流渲染
+    if (extension === '.pcd') {
+        // ========== 加载 3D 点云 ==========
+        const pcdLoader = new THREE.PCDLoader();
+        pcdLoader.load(
+            downloadUrl,
+            function (points) {
+                points.material.color.setHex(0x555555); // 深灰色
+                points.material.size = 0.2;
+                rosRoot.add(points);
+                currentMapPoints = points; // 记录当前地图对象
+                console.log("✅ 3D PCD 地图加载成功！点数:", points.geometry.attributes.position.count);
+            },
+            function (xhr) {
+                console.log("加载进度: " + (xhr.loaded / xhr.total * 100).toFixed(2) + '%');
+            },
+            function (error) {
+                console.error('地图加载出错:', error);
+                alert("加载失败：可能该点云文件已损坏或不存在！");
+            }
+        );
+    } else if (extension === '.png') {
+        // ========== 加载 2D 背景 ==========
+        const textureLoader = new THREE.TextureLoader();
+        textureLoader.load(
+            downloadUrl,
+            function (texture) {
+                // 假设你的 AGV 系统中 2D 地图的分辨率是 0.05 米/像素
+                // 如果你们的分辨率不同，请在这里修改比例系数
+                const resolution = 0.05;
+                const width = texture.image.width * resolution;
+                const height = texture.image.height * resolution;
+
+                const planeGeometry = new THREE.PlaneGeometry(width, height);
+                const planeMaterial = new THREE.MeshBasicMaterial({
+                    map: texture,
+                    side: THREE.DoubleSide,
+                    transparent: true,
+                    opacity: 0.8 // 稍微调低一点透明度，视觉效果更好
+                });
+
+                const planeMesh = new THREE.Mesh(planeGeometry, planeMaterial);
+                // 把 Z 轴往下放一点点（-0.1），防止跟地面网格或小车重叠闪烁
+                planeMesh.position.z = -0.1;
+
+                rosRoot.add(planeMesh);
+                currentMapPoints = planeMesh; // 同样记录下来，方便下次切换时清理
+                console.log("✅ 2D PNG 地图加载成功！尺寸:", width.toFixed(2), "x", height.toFixed(2), "米");
+            },
+            function (xhr) {
+                // TextureLoader 通常没有具体的进度百分比
+            },
+            function (error) {
+                console.error('PNG 图片加载出错:', error);
+                alert("加载失败：无法获取该 PNG 文件！");
+            }
+        );
+    }
 };
 
 ws.onclose = () => {
@@ -231,19 +280,20 @@ ws.onmessage = (event) => {
                 for (const category in res.data) {
                     const mapFiles = res.data[category];
                     mapFiles.forEach(fileName => {
-                        // 判断 fileName 是否以 .pcd 结尾
-                        if (fileName.endsWith('.pcd')) {
-                            // 把 "SS27.smap" 去掉后缀，变成 "SS27"
-                            const mapName = fileName.replace('.pcd', '');
+                        // 【核心】：只过滤出 .pcd 和 .png 文件
+                        if (fileName.endsWith('.pcd') || fileName.endsWith('.png')) {
                             const option = document.createElement('option');
-                            // value 存成 "pc/SS27" 的格式，方便后端解析
-                            option.value = `${category}/${mapName}`;
-                            option.textContent = `[${category}] ${mapName}`;
+
+                            // 假设 fileName 是 "3#_1.pcd"
+                            // value 我们存成 "category/fileName"，例如 "rcs/3#_1.pcd"
+                            option.value = `${category}/${fileName}`;
+                            option.textContent = `[${category}] ${fileName}`;
+
                             mapSelect.appendChild(option);
                         }
                     });
                 }
-                console.log("地图列表更新完毕");
+                console.log("地图列表更新完毕，已过滤 pcd 和 png 文件");
             } else {
                 console.warn("获取地图列表失败:", res.message);
             }
