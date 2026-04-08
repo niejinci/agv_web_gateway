@@ -201,6 +201,25 @@ void AgvWebGateway::send_to_frontend(websocketpp::connection_hdl hdl, const std:
     }
 }
 
+// 辅助函数：用于将 URL 中编码的特殊字符（如 %23）解码还原为原始字符（如 #）
+std::string url_decode(const std::string &encoded_string) {
+    std::string result;
+    result.reserve(encoded_string.length());
+    for (size_t i = 0; i < encoded_string.length(); ++i) {
+        if (encoded_string[i] == '%' && i + 2 < encoded_string.length()) {
+            int hex_val;
+            sscanf(encoded_string.substr(i + 1, 2).c_str(), "%x", &hex_val);
+            result += static_cast<char>(hex_val);
+            i += 2;
+        } else if (encoded_string[i] == '+') {
+            result += ' ';
+        } else {
+            result += encoded_string[i];
+        }
+    }
+    return result;
+}
+
 // 实现 on_http 函数
 void AgvWebGateway::on_http(websocketpp::connection_hdl hdl) {
     server::connection_ptr con = m_server.get_con_from_hdl(hdl);
@@ -241,8 +260,12 @@ void AgvWebGateway::on_http(websocketpp::connection_hdl hdl) {
 
         size_t slash_pos = sub_path.find('/');
         if (slash_pos != std::string::npos) {
-            std::string category = sub_path.substr(0, slash_pos);     // 取出 "pc" or "rcs"
-            std::string map_name = sub_path.substr(slash_pos + 1);    // 取出 "SS27"
+            std::string category = sub_path.substr(0, slash_pos);     // 取出 "pc" 或者 "rcs"
+            std::string map_name = sub_path.substr(slash_pos + 1);    // 取出 "3%23_1" 等编码后的名字 (3#_1)
+
+            // 【新增】：将前端传过来的 URL 编码字符（如 %23）解码回真实字符（如 #）
+            category = url_decode(category);
+            map_name = url_decode(map_name);
 
             // 【核心】：直接组装出 AGV 底层的绝对物理路径！
             // 结果如: /home/byd/data/map/pc/SS27/SS27.pcd

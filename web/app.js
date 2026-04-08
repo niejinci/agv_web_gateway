@@ -144,7 +144,9 @@ document.getElementById('btn-load-map').onclick = () => {
     }
 
     // 2. 拼装动态请求的 URL (例如: /pcd/pc/SS27)
-    let pcdUrl = `/pcd/${selected}`;
+    // 使用 split('/') 和 encodeURIComponent 对路径中的每一段进行安全的 URL 编码，将 # 转换为 %23
+    const encodedSelected = selected.split('/').map(encodeURIComponent).join('/');
+    let pcdUrl = `/pcd/${encodedSelected}`;
     // 【新增】：如果勾选了强制更新，就在 URL 后面挂一个随机时间戳！
     const forceUpdate = document.getElementById('cb-force-update').checked;
     if (forceUpdate) {
