@@ -132,6 +132,9 @@ ws.onopen = () => {
     ws.send("get_map_list");
 };
 
+// 在全局定义一个变量记录当前的加载标识
+let currentLoadToken = 0;
+
 // 【新增】：绑定加载地图按钮点击事件
 document.getElementById('btn-load-map').onclick = () => {
     const selected = document.getElementById('map-select').value;
@@ -139,6 +142,9 @@ document.getElementById('btn-load-map').onclick = () => {
         alert("请先选择一个地图！");
         return;
     }
+
+    // 每次点击加载时生成一个新标识
+    const myLoadToken = ++currentLoadToken;
 
     // 1. 清理之前的场景（无论是 3D 还是 2D）
     if (currentMapPoints) {
@@ -176,6 +182,13 @@ document.getElementById('btn-load-map').onclick = () => {
         pcdLoader.load(
             downloadUrl,
             function (points) {
+                // 回调时检查标识，如果已经被新的加载任务覆盖，则直接丢弃本次结果
+                if (myLoadToken !== currentLoadToken) {
+                    points.geometry.dispose();
+                    points.material.dispose();
+                    return;
+                }
+
                 points.material.color.setHex(0x555555);
                 // 建议把点的大小稍微调大一点，比如 0.5，远距离更容易看清
                 points.material.size = 0.5;
@@ -250,6 +263,10 @@ document.getElementById('btn-load-map').onclick = () => {
                 textureLoader.load(
                     downloadUrl,
                     function (texture) {
+                        if (myLoadToken !== currentLoadToken) {
+                            texture.dispose();
+                            return;
+                        }
                         // 【关键修复 1】：关闭线性过滤，使用最近邻插值，让栅格地图边缘像刀切一样锐利！
                         texture.minFilter = THREE.NearestFilter;
                         texture.magFilter = THREE.NearestFilter;
