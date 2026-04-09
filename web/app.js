@@ -530,3 +530,21 @@ btnToggle.onclick = () => {
         btnToggle.textContent = '展开 +';
     }
 };
+
+// ==========================================
+// 临时调试辅助：使用键盘方向键微调地图，找出真实坐标！
+// ==========================================
+window.addEventListener('keydown', (e) => {
+    if (!currentMapPoints || currentMapPoints.type !== 'Mesh') return; // 只针对 2D PNG(Mesh) 生效
+
+    const step = 1.0; // 每次按键移动 1 米
+    if (e.key === 'ArrowUp') currentMapPoints.position.y += step;
+    if (e.key === 'ArrowDown') currentMapPoints.position.y -= step;
+    if (e.key === 'ArrowLeft') currentMapPoints.position.x -= step;
+    if (e.key === 'ArrowRight') currentMapPoints.position.x += step;
+
+    // 让网格也跟着地图走，方便观察
+    gridHelper.position.set(currentMapPoints.position.x, currentMapPoints.position.y, 0);
+
+    console.log(`📍 当前完美对齐的 Plane 中心坐标: X = ${currentMapPoints.position.x.toFixed(2)}, Y = ${currentMapPoints.position.y.toFixed(2)}`);
+});
