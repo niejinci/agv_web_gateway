@@ -332,6 +332,47 @@ void AgvWebGateway::on_http(websocketpp::connection_hdl hdl) {
             con->set_body("404 Not Found");
             return;
         }
+    }     // ... 前面的 /png/ 拦截逻辑 ...
+    else if (uri.find("/yaml/") == 0) {
+        std::string sub_path = uri.substr(6); // 截取 "/yaml/" 后面的内容
+
+        size_t question_mark_pos = sub_path.find('?');
+        if (question_mark_pos != std::string::npos) {
+            sub_path = sub_path.substr(0, question_mark_pos);
+        }
+
+        size_t slash_pos = sub_path.find('/');
+        if (slash_pos != std::string::npos) {
+            std::string category = url_decode(sub_path.substr(0, slash_pos));
+            std::string map_name = url_decode(sub_path.substr(slash_pos + 1));
+            // 截取掉 .png 后缀（如果前端传的是 3#_1.png），换成 .yaml
+            size_t dot_pos = map_name.find_last_of('.');
+            if (dot_pos != std::string::npos) {
+                map_name = map_name.substr(0, dot_pos);
+            }
+
+            std::string filepath = "/home/byd/data/map/" + category + "/" + map_name + "/" + map_name + ".yaml";
+
+            std::ifstream file(filepath, std::ios::in | std::ios::binary | std::ios::ate);
+            if (file.is_open()) {
+                std::streamsize size = file.tellg();
+                file.seekg(0, std::ios::beg);
+                std::string buffer;
+                buffer.resize(size);
+
+                if (file.read(&buffer[0], size)) {
+                    con->set_body(buffer);
+                    con->set_status(websocketpp::http::status_code::ok);
+                    con->append_header("Content-Type", "text/yaml; charset=utf-8");
+                    con->append_header("Cache-Control", "public, max-age=86400");
+                    con->append_header("Connection", "close");
+                    return;
+                }
+            }
+            con->set_status(websocketpp::http::status_code::not_found);
+            con->set_body("404 Not Found");
+            return;
+        }
     } else if (uri != "/") {
         // 请求了不存在的文件
         con->set_status(websocketpp::http::status_code::not_found);

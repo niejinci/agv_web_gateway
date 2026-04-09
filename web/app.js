@@ -10,10 +10,13 @@ document.body.appendChild(renderer.domElement);
 const controls = new THREE.OrbitControls(camera, renderer.domElement);
 
 // 网格地面
-// 200米 x 200米的大小，划分为 100 个格子 (每个格子 2x2 米)
-const gridHelper = new THREE.GridHelper(200, 100, 0x444444, 0x222222);
+// 【优化 4】：网格地面变稀疏，消除摩尔纹，并加入 rosRoot
+// 500米 x 500米的大小，划分为 50 个格子 (每个格子 10x10 米)
+const gridHelper = new THREE.GridHelper(500, 50, 0x444444, 0x222222);
+// GridHelper 默认画在 XZ 平面上(法线是 Y)。但在 ROS 坐标系下，地面是 XY 平面(法线是 Z)。
+// 所以绕 X 轴旋转 90 度，让它平铺在 ROS 的 XY 地面上。
 gridHelper.rotation.x = Math.PI / 2;
-scene.add(gridHelper);
+// scene.add(gridHelper);
 
 // ROS 坐标系转换 (Z 轴朝上)
 // Three.js (前端呈现)：默认 Y 轴是朝上的（天空），Z 轴是朝向你的（深度）。
@@ -24,6 +27,8 @@ const rosRoot = new THREE.Group();
 // 绕 X 轴旋转 -90 度
 // 这会把原本朝上的 Y 轴拍下去，把原本朝向你的 Z 轴立起来当成天空，做完这个旋转后，底盘发过来的 X 和 Y 就会老老实实地趴在 Three.js 的地平面上了
 rosRoot.rotation.x = -Math.PI / 2;
+// 【核心修改】：将网格添加到 rosRoot 而不是 scene，这样它就跟地图在一个世界了！
+rosRoot.add(gridHelper);
 scene.add(rosRoot);
 
 // ==========================================
@@ -171,11 +176,39 @@ document.getElementById('btn-load-map').onclick = () => {
         pcdLoader.load(
             downloadUrl,
             function (points) {
-                points.material.color.setHex(0x555555); // 深灰色
-                points.material.size = 0.2;
+                points.material.color.setHex(0x555555);
+                // 建议把点的大小稍微调大一点，比如 0.5，远距离更容易看清
+                points.material.size = 0.5;
                 rosRoot.add(points);
-                currentMapPoints = points; // 记录当前地图对象
+                currentMapPoints = points;
                 console.log("✅ 3D PCD 地图加载成功！点数:", points.geometry.attributes.position.count);
+
+                // 【新增核心代码】：自动居中并适配相机视角
+                // 1. 计算点云的包围球 (Bounding Sphere)，得到中心点和半径
+                points.geometry.computeBoundingSphere();
+                const boundingSphere = points.geometry.boundingSphere;
+                const center = boundingSphere.center;
+                const radius = boundingSphere.radius || 50; // 获取地图的半径大小
+
+                // 【新增】：把网格移动到点云的中心（保持 z 为 0 贴在地面）
+                gridHelper.position.set(center.x, center.y, 0);
+
+                // 2. 因为点云被放到了 rosRoot 中(旋转过)，所以需要将局部坐标转为世界坐标
+                points.updateMatrixWorld();
+                const worldCenter = center.clone().applyMatrix4(points.matrixWorld);
+
+                // 3. 把控制器的焦点 (围绕旋转的中心) 对准地图中心
+                controls.target.copy(worldCenter);
+
+                // 4. 把相机拉远，距离大约是地图半径的 1.5 倍，确保能看全整个地图
+                camera.position.set(
+                    worldCenter.x,
+                    worldCenter.y + radius * 1.5,
+                    worldCenter.z + radius * 1.5
+                );
+
+                // 5. 更新控制器
+                controls.update();
             },
             function (xhr) {
                 console.log("加载进度: " + (xhr.loaded / xhr.total * 100).toFixed(2) + '%');
@@ -187,40 +220,82 @@ document.getElementById('btn-load-map').onclick = () => {
         );
     } else if (extension === '.png') {
         // ========== 加载 2D 背景 ==========
-        const textureLoader = new THREE.TextureLoader();
-        textureLoader.load(
-            downloadUrl,
-            function (texture) {
-                // 假设你的 AGV 系统中 2D 地图的分辨率是 0.05 米/像素
-                // 如果你们的分辨率不同，请在这里修改比例系数
-                const resolution = 0.05;
-                const width = texture.image.width * resolution;
-                const height = texture.image.height * resolution;
+        // 组装 YAML 的请求路径
+        let yamlUrl = `/yaml/${encodedSelected}`;
+        if (forceUpdate) yamlUrl += `?t=${new Date().getTime()}`;
 
-                const planeGeometry = new THREE.PlaneGeometry(width, height);
-                const planeMaterial = new THREE.MeshBasicMaterial({
-                    map: texture,
-                    side: THREE.DoubleSide,
-                    transparent: true,
-                    opacity: 0.8 // 稍微调低一点透明度，视觉效果更好
-                });
+        // 1. 先去请求同名的 YAML 文件获取物理参数
+        fetch(yamlUrl)
+            .then(res => {
+                if (!res.ok) throw new Error("无法获取 yaml 配置文件");
+                return res.text();
+            })
+            .catch(err => {
+                console.warn(err, "，将使用默认参数加载");
+                return ""; // 失败则返回空字符串，触发默认逻辑
+            })
+            .then(yamlText => {
+                // 2. 使用正则解析 ROS 标准的 yaml 格式
+                const resMatch = yamlText.match(/resolution:\s*([\d.]+)/);
+                const originMatch = yamlText.match(/origin:\s*\[([\d.-]+),\s*([\d.-]+)/);
 
-                const planeMesh = new THREE.Mesh(planeGeometry, planeMaterial);
-                // 把 Z 轴往下放一点点（-0.1），防止跟地面网格或小车重叠闪烁
-                planeMesh.position.z = -0.1;
+                const resolution = resMatch ? parseFloat(resMatch[1]) : 0.05; // 默认 0.05米/像素
+                const originX = originMatch ? parseFloat(originMatch[1]) : 0;
+                const originY = originMatch ? parseFloat(originMatch[2]) : 0;
 
-                rosRoot.add(planeMesh);
-                currentMapPoints = planeMesh; // 同样记录下来，方便下次切换时清理
-                console.log("✅ 2D PNG 地图加载成功！尺寸:", width.toFixed(2), "x", height.toFixed(2), "米");
-            },
-            function (xhr) {
-                // TextureLoader 通常没有具体的进度百分比
-            },
-            function (error) {
-                console.error('PNG 图片加载出错:', error);
-                alert("加载失败：无法获取该 PNG 文件！");
-            }
-        );
+                console.log(`🗺️ 物理参数: 分辨率=${resolution}, 原点=[${originX}, ${originY}]`);
+
+                // 3. 加载 PNG 纹理
+                const textureLoader = new THREE.TextureLoader();
+                textureLoader.load(
+                    downloadUrl,
+                    function (texture) {
+                        // 【关键修复 1】：关闭线性过滤，使用最近邻插值，让栅格地图边缘像刀切一样锐利！
+                        texture.minFilter = THREE.NearestFilter;
+                        texture.magFilter = THREE.NearestFilter;
+                        texture.generateMipmaps = false; // 禁用 mipmap 防止远距离发虚
+
+                        const width = texture.image.width * resolution;
+                        const height = texture.image.height * resolution;
+
+                        const planeGeometry = new THREE.PlaneGeometry(width, height);
+                        const planeMaterial = new THREE.MeshBasicMaterial({
+                            map: texture,
+                            side: THREE.DoubleSide,
+                            transparent: true,
+                            opacity: 1.0 // 【可选】：既然图片变清晰了，可以把透明度调回 1.0 也就是完全不透明
+                        });
+
+                        const planeMesh = new THREE.Mesh(planeGeometry, planeMaterial);
+
+                        // 【核心数学转换】：
+                        // ROS 里 origin 代表图片的“左下角”坐标。
+                        // 而 Three.js 的 Plane 是以“中心点”对齐的。
+                        // 所以 Plane 的中心坐标 = 左下角坐标 + 宽高的一半。
+                        planeMesh.position.x = originX + width / 2;
+                        planeMesh.position.y = originY + height / 2;
+                        // 【关键修复 2】：把图片稍微再往下沉一点（比如 -0.5），彻底拉开和网格(0)的距离，消灭闪烁的摩尔纹
+                        planeMesh.position.z = -0.5;
+
+                        rosRoot.add(planeMesh);
+                        currentMapPoints = planeMesh;
+
+                        // 让网格也贴在图片的中心
+                        gridHelper.position.set(planeMesh.position.x, planeMesh.position.y, 0);
+
+                        // 让相机居中并抬高
+                        planeMesh.updateMatrixWorld();
+                        const worldCenter = planeMesh.position.clone().applyMatrix4(rosRoot.matrixWorld);
+                        controls.target.copy(worldCenter);
+
+                        const maxDim = Math.max(width, height);
+                        camera.position.set(worldCenter.x, worldCenter.y + maxDim * 0.8, worldCenter.z + maxDim * 0.8);
+                        controls.update();
+
+                        console.log(`✅ 2D PNG 加载完成！真实尺寸: ${width.toFixed(2)}x${height.toFixed(2)}米`);
+                    }
+                );
+            });
     }
 };
 
