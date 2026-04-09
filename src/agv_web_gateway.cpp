@@ -332,6 +332,58 @@ void AgvWebGateway::on_http(websocketpp::connection_hdl hdl) {
             con->set_body("404 Not Found");
             return;
         }
+    }
+    else if (uri.find("/yaml/") == 0) {
+        std::string sub_path = uri.substr(6);
+
+        // 去除 URL 参数
+        size_t question_mark_pos = sub_path.find('?');
+        if (question_mark_pos != std::string::npos) {
+            sub_path = sub_path.substr(0, question_mark_pos);
+        }
+
+        size_t slash_pos = sub_path.find('/');
+        if (slash_pos != std::string::npos) {
+            std::string category = url_decode(sub_path.substr(0, slash_pos));
+            std::string map_name = url_decode(sub_path.substr(slash_pos + 1));
+
+            // 防止路径穿越攻击：拒绝包含 ".." 或以 "/" 开头的输入
+            if (category.find("..") != std::string::npos || category.find('/') != std::string::npos ||
+                map_name.find("..") != std::string::npos || map_name.find('/') != std::string::npos ||
+                (!category.empty() && category[0] == '/') || (!map_name.empty() && map_name[0] == '/')) {
+                con->set_status(websocketpp::http::status_code::bad_request);
+                con->set_body("400 Bad Request");
+                return;
+            }
+
+            // 如果 map_name 末尾带有 .png 后缀，则去除
+            if (map_name.size() >= 4 && map_name.substr(map_name.size() - 4) == ".png") {
+                map_name = map_name.substr(0, map_name.size() - 4);
+            }
+
+            // 组装 .yaml 文件的绝对物理路径
+            std::string filepath = "/home/byd/data/map/" + category + "/" + map_name + "/" + map_name + ".yaml";
+
+            std::ifstream file(filepath, std::ios::in | std::ios::binary | std::ios::ate);
+            if (file.is_open()) {
+                std::streamsize size = file.tellg();
+                file.seekg(0, std::ios::beg);
+                std::string buffer;
+                buffer.resize(size);
+
+                if (file.read(&buffer[0], size)) {
+                    con->set_body(buffer);
+                    con->set_status(websocketpp::http::status_code::ok);
+                    con->append_header("Content-Type", "text/yaml; charset=utf-8");
+                    con->append_header("Cache-Control", "public, max-age=86400");
+                    con->append_header("Connection", "close");
+                    return;
+                }
+            }
+            con->set_status(websocketpp::http::status_code::not_found);
+            con->set_body("404 Not Found");
+            return;
+        }
     } else if (uri != "/") {
         // 请求了不存在的文件
         con->set_status(websocketpp::http::status_code::not_found);

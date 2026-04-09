@@ -10,10 +10,10 @@ document.body.appendChild(renderer.domElement);
 const controls = new THREE.OrbitControls(camera, renderer.domElement);
 
 // 网格地面
-// 200米 x 200米的大小，划分为 100 个格子 (每个格子 2x2 米)
-const gridHelper = new THREE.GridHelper(200, 100, 0x444444, 0x222222);
+// 1000米 x 1000米的大小，划分为 500 个格子 (每个格子 2x2 米)
+const gridHelper = new THREE.GridHelper(1000, 500, 0x444444, 0x222222);
 gridHelper.rotation.x = Math.PI / 2;
-scene.add(gridHelper);
+rosRoot.add(gridHelper);
 
 // ROS 坐标系转换 (Z 轴朝上)
 // Three.js (前端呈现)：默认 Y 轴是朝上的（天空），Z 轴是朝向你的（深度）。
@@ -176,6 +176,27 @@ document.getElementById('btn-load-map').onclick = () => {
                 rosRoot.add(points);
                 currentMapPoints = points; // 记录当前地图对象
                 console.log("✅ 3D PCD 地图加载成功！点数:", points.geometry.attributes.position.count);
+
+                // 自动居中：计算点云的包围球，得到中心点和半径
+                points.geometry.computeBoundingSphere();
+                const center = points.geometry.boundingSphere.center;
+                const radius = points.geometry.boundingSphere.radius || 50;
+
+                // 把网格移动到点云的中心（保持 z 为 0 贴在地面）
+                gridHelper.position.set(center.x, center.y, 0);
+
+                // 将局部坐标转为世界坐标，供相机跟随使用
+                points.updateMatrixWorld();
+                const worldCenter = center.clone().applyMatrix4(points.matrixWorld);
+
+                // 把控制器焦点对准地图中心，相机退后 radius * 1.5 距离以看全全图
+                controls.target.copy(worldCenter);
+                camera.position.set(
+                    worldCenter.x,
+                    worldCenter.y + radius * 1.5,
+                    worldCenter.z + radius * 1.5
+                );
+                controls.update();
             },
             function (xhr) {
                 console.log("加载进度: " + (xhr.loaded / xhr.total * 100).toFixed(2) + '%');
@@ -186,41 +207,77 @@ document.getElementById('btn-load-map').onclick = () => {
             }
         );
     } else if (extension === '.png') {
-        // ========== 加载 2D 背景 ==========
-        const textureLoader = new THREE.TextureLoader();
-        textureLoader.load(
-            downloadUrl,
-            function (texture) {
-                // 假设你的 AGV 系统中 2D 地图的分辨率是 0.05 米/像素
-                // 如果你们的分辨率不同，请在这里修改比例系数
-                const resolution = 0.05;
-                const width = texture.image.width * resolution;
-                const height = texture.image.height * resolution;
+        // ========== 加载 2D 背景（先获取 YAML 配置，再加载 PNG 贴图）==========
+        const yamlUrl = `/yaml/${encodedSelected}` + (forceUpdate ? `?t=${new Date().getTime()}` : '');
 
-                const planeGeometry = new THREE.PlaneGeometry(width, height);
-                const planeMaterial = new THREE.MeshBasicMaterial({
-                    map: texture,
-                    side: THREE.DoubleSide,
-                    transparent: true,
-                    opacity: 0.8 // 稍微调低一点透明度，视觉效果更好
-                });
+        fetch(yamlUrl)
+            .then(r => r.ok ? r.text() : '')
+            .catch(() => '')
+            .then(yamlText => {
+                // 用正则从 YAML 文本中解析 resolution 和 origin
+                let resolution = 0.05;
+                let originX = 0;
+                let originY = 0;
 
-                const planeMesh = new THREE.Mesh(planeGeometry, planeMaterial);
-                // 把 Z 轴往下放一点点（-0.1），防止跟地面网格或小车重叠闪烁
-                planeMesh.position.z = -0.1;
+                const resMatch = yamlText.match(/resolution\s*:\s*([\d.]+)/);
+                if (resMatch) resolution = parseFloat(resMatch[1]);
 
-                rosRoot.add(planeMesh);
-                currentMapPoints = planeMesh; // 同样记录下来，方便下次切换时清理
-                console.log("✅ 2D PNG 地图加载成功！尺寸:", width.toFixed(2), "x", height.toFixed(2), "米");
-            },
-            function (xhr) {
-                // TextureLoader 通常没有具体的进度百分比
-            },
-            function (error) {
-                console.error('PNG 图片加载出错:', error);
-                alert("加载失败：无法获取该 PNG 文件！");
-            }
-        );
+                const originMatch = yamlText.match(/origin\s*:\s*\[\s*([-\d.eE+]+)\s*,\s*([-\d.eE+]+)/);
+                if (originMatch) {
+                    originX = parseFloat(originMatch[1]);
+                    originY = parseFloat(originMatch[2]);
+                }
+
+                console.log(`YAML 解析结果：resolution=${resolution}, origin=[${originX}, ${originY}]`);
+
+                const textureLoader = new THREE.TextureLoader();
+                textureLoader.load(
+                    downloadUrl,
+                    function (texture) {
+                        const width = texture.image.width * resolution;
+                        const height = texture.image.height * resolution;
+
+                        const planeGeometry = new THREE.PlaneGeometry(width, height);
+                        const planeMaterial = new THREE.MeshBasicMaterial({
+                            map: texture,
+                            side: THREE.DoubleSide,
+                            transparent: true,
+                            opacity: 0.8
+                        });
+
+                        const planeMesh = new THREE.Mesh(planeGeometry, planeMaterial);
+                        // 根据 YAML origin 和图片尺寸计算中心点坐标
+                        planeMesh.position.x = originX + width / 2;
+                        planeMesh.position.y = originY + height / 2;
+                        planeMesh.position.z = -0.1;
+
+                        rosRoot.add(planeMesh);
+                        currentMapPoints = planeMesh;
+
+                        // 把网格移动到图片中心
+                        gridHelper.position.set(planeMesh.position.x, planeMesh.position.y, 0);
+
+                        // 把相机和控制器焦点对准图片中心
+                        controls.target.set(planeMesh.position.x, planeMesh.position.y, planeMesh.position.z);
+                        const maxDim = Math.max(width, height);
+                        camera.position.set(
+                            planeMesh.position.x,
+                            planeMesh.position.y + maxDim * 0.8,
+                            planeMesh.position.z + maxDim * 0.8
+                        );
+                        controls.update();
+
+                        console.log("✅ 2D PNG 地图加载成功！尺寸:", width.toFixed(2), "x", height.toFixed(2), "米");
+                    },
+                    function (xhr) {
+                        // TextureLoader 通常没有具体的进度百分比
+                    },
+                    function (error) {
+                        console.error('PNG 图片加载出错:', error);
+                        alert("加载失败：无法获取该 PNG 文件！");
+                    }
+                );
+            });
     }
 };
 
