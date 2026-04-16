@@ -176,6 +176,13 @@ void AgvWebGateway::on_message(websocketpp::connection_hdl hdl, server::message_
         });
     } else if (cmd == "stop_obst_pcl") {
         m_client->cancel_get_obst_pcl();
+    }  // 获取扫码相机数据
+    else if (cmd == "start_qr_camera_data") {
+        m_client->get_qr_camera_data([this, hdl](const std::string& json_resp) {
+            send_to_frontend(hdl, "qr_camera_data", json_resp);
+        });
+    } else if (cmd == "stop_qr_camera_data") {
+        m_client->cancel_get_qr_camera_data();
     }
     // 获取日志文件列表，作为一个非持续数据流的测试接口
     else if (cmd == "get_log_list") {

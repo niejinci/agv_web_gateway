@@ -121,7 +121,8 @@ const streamState = {
     obst_polygon: false,
     model_polygon: false,
     scan2pointcloud: false,
-    obst_pcl: false
+    obst_pcl: false,
+    qr_camera_data: false  // 扫码相机状态
 };
 
 ws.onopen = () => {
@@ -454,6 +455,37 @@ ws.onmessage = (event) => {
             case 'log_list':
                 // 格式化输出 JSON
                 logOutput.value = JSON.stringify(data, null, 2);
+                break;
+                // 接收到扫码相机数据时，渲染到文本框
+            // case 'qr_camera_data':
+            //     // 直接使用页面底部的文本区域展示 JSON 数据，方便检查
+            //     logOutput.value = "=== 扫码相机数据 ===\n" + JSON.stringify(data, null, 2);
+            //     break;
+            // 【修改】：接收到扫码相机数据时，格式化为更易读的中文 YAML 样式（时间戳单行显示）
+            case 'qr_camera_data':
+                if (data) {
+                    // 辅助函数：将单个相机数据转为中文格式
+                    const formatCameraData = (cam) => {
+                        if (!cam) return "  无数据\n";
+
+                        // 获取秒和纳秒，默认值为 0
+                        const sec = cam.stamp ? cam.stamp.sec : 0;
+                        const nanosec = cam.stamp ? cam.stamp.nanosec : 0;
+
+                        return `  角度: ${cam.angle}\n` +
+                               `  是否矩阵: ${cam.is_matrix}\n` +
+                               `  时间戳: ${sec}.${nanosec}\n` +
+                               `  标签ID: ${cam.tag_number}\n` +
+                               `  x坐标: ${cam.x}\n` +
+                               `  y坐标: ${cam.y}\n`;
+                    };
+
+                    let formattedText = "=== 扫码相机实时数据 ===\n\n";
+                    formattedText += "地码相机:\n" + formatCameraData(data.pos) + "\n";
+                    formattedText += "货码相机:\n" + formatCameraData(data.rack);
+
+                    logOutput.value = formattedText;
+                }
                 break;
         }
     } catch (e) {

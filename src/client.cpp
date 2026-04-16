@@ -1068,7 +1068,7 @@ bool Client::get_qr_camera_data(ResponseHandler handler)
 
 bool Client::get_qr_camera_data()
 {
-    get_qr_camera_data_task_.start(asio::chrono::milliseconds(200));
+    get_qr_camera_data_task_.start(asio::chrono::milliseconds(1000));
     return true;
 }
 
